@@ -1,0 +1,41 @@
+1.解压openssl-1.0.1i.tar.gz
+2.安装ActivePerl-5.16.3.1604-MSWin32-x86-298023.msi
+3.进入控制台，进入第一步的解压后的路径
+
+32位release
+perl Configure VC-WIN32 no-asm -DOPENSSL_USE_IPV6=0
+ms\do_ms
+
+64位release
+perl Configure VC-WIN64A  no-asm -DOPENSSL_USE_IPV6=0
+ms\do_win64a
+
+32位debug
+如果你需要编译一个Debug版的,发须先修改 ms\do_ms.bat 找到这两行(第2,3行)
+perl util\mk1mf.pl no-asm VC-WIN32 >ms\nt.mak
+perl util\mk1mf.pl dll no-asm VC-WIN32 >ms\ntdll.mak
+修改为
+perl util\mk1mf.pl no-asm debug VC-WIN32>ms\nt.mak
+perl util\mk1mf.pl dll no-asm debug VC-WIN32 >ms\ntdll.mak
+
+64位debug
+如果你需要编译一个Debug版的,发须先修改 ms\do_win64a.bat 找到这两行(第2,3行)
+perl util\mk1mf.pl no-asm VC-WIN64A >ms\nt.mak
+perl util\mk1mf.pl dll no-asm VC-WIN64A >ms\ntdll.mak
+修改为
+perl util\mk1mf.pl no-asm debug VC-WIN64A >ms\nt.mak
+perl util\mk1mf.pl dll no-asm debug VC-WIN64A >ms\ntdll.mak
+
+4.编译动态库：nmake -f ms\ntdll.mak 编译静态库：nmake -f ms\nt.mak
+
+
+使用vc6编程：
+1.将头文件文件夹 openssl 放入 C:\Program Files\Microsoft Visual Studio\VC98\Include
+2.将文件 libeay32.lib，ssleay32.lib放入 C:\Program Files\Microsoft Visual Studio\VC98\Lib
+
+静态链接c运行库：
+LIBCPMTD.lib（Debug版本）
+LIBCPMT.lib
+动态链接c运行库：
+MSVCPRTD.lib（Debug版本）
+MSVCPRT.lib

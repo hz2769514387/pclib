@@ -1,0 +1,96 @@
+#ifndef _PCLOG_H_
+#define _PCLOG_H_
+#if defined(_MSC_VER)
+# pragma once
+#endif
+#include "PCLock.h" 
+
+//////////////////////////////////////////////////////////////////////////
+PCLIB_NAMESPACE_BEG
+//////////////////////////////////////////////////////////////////////////
+
+//一行日志最大长度，4MB
+#define PC_LOG_LINE_MAX_LEN		(4*1024*1024)
+
+//是否立即写入
+#define PC_LOG_WRITE_ALWAYS		(false)
+
+
+/**
+*@brief		日志类
+*/
+class CPCLog :CPCNoCopyable
+{
+public:
+	virtual ~CPCLog();
+	static CPCLog* GetRoot();
+
+	//日志等级
+	enum ePCLogLevel
+	{
+		eLevelClose = 0,
+		eLevelTrace ,
+		eLevelDebug ,
+		eLevelInfo  ,
+		eLevelWarn  ,
+		eLevelError ,
+		eLevelFatal
+	};
+
+	//日志生成模式，按天生成或按小时生成
+	enum ePCLogGenMode
+	{
+		eGenModeHour = 1,
+		eGenModeDay
+	};
+
+public:
+	/**
+	*@brief		设置写日志属性
+	*@param		nLevel		[IN]	设定的日志等级，低于日志等级的日志不写，参考PCDebug.h
+	*@param		nGenMode	[IN]	日志生成模式，参考PCDebug.h
+	*@param		bStdout		[IN]	是否将日志打印到控制台
+	*@param		pszLogPath	[IN]	日志文件路径。默认为当前目录下的logs目录
+	*@return	错误码，见PC_Lib.h
+	*/
+	int	SetLogAttr(int nLevel, int nGenMode, bool bStdout, const char * pszLogPath);
+
+	/**
+	*@brief		写日志，日志写完毕后添加换行符
+	*@param		nLevel	[IN]	当条日志的日志等级
+	*@param		pszFmt	[IN]	日志内容格式串/日志内容
+	*@return	错误码，见PCDebug.h
+	*/
+	int WriteLogFmt(int nLevel, const char* pszFmt, ...);
+	/**
+	*@brief		写二进制数据日志，日志写完毕后添加换行符
+	*@param		nLevel		[IN]	当条日志的日志等级
+	*@param		pszTips		[IN]	前导提示字符串
+	*@param		pszBytes	[IN]	数据日志内容
+	*@param		nBytesLen	[IN]	数据日志内容长度
+	*@return	错误码，见PC_Lib.h
+	*/
+	int WriteLogBytes(int nLevel, const char* pszTips, const unsigned char* pszBytes, unsigned int nBytesLen);
+private:
+	CPCLog();
+	int CheckLogger(char pszTimeBuf[PC_MAX_PATH]);
+
+	int  m_nLogLevel;				
+	int  m_nGenMode;				
+	bool m_bStdout;					
+	char m_pszLogPath[PC_MAX_PATH];	
+
+	static CPCRecursiveLock m_Mutex;		
+	FILE           * m_pLogFile;	
+	char		   * m_pFmtBuff;	
+	static const char * const m_LOG_LEVEL_NAME[];
+
+	//当前文件的年月日。
+	char m_pszCurrFileTime[PC_MAX_PATH];
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+PCLIB_NAMESPACE_END
+//////////////////////////////////////////////////////////////////////////
+#endif /*_PCLOG_H_*/
