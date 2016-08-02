@@ -131,7 +131,7 @@ char*  PCStrTrim(char *pszBuf, const char *pszWhat, int nMode)
 	return (char*)buf;
 }
 
-int PCStrSplit(char *pszSrc, const char *pszDelim, std::vector<char*>& vecStrList)
+int PCStrSplit(char *pszSrc, const char *pszDelim, std::vector<char*> &vecStrList)
 {
 	if (pszSrc == NULL)
 	{

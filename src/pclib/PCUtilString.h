@@ -44,10 +44,10 @@ char*  PCStrTrim(char *pszBuf, const char *pszWhat = " ", int nMode = 3);
 *@brief		将字符串按照pszDelim分割，添加到vecStrList中（如果vecStrList已经有数据，则从最后添加，原来的数据不会被删除）
 *@param		pszSrc		[IN]	待分割的字符串.注意：1.调用该函数后pszSrc可能被改变
 *@param		pszDelim	[IN]	分割的字符列表，可以指定多个字符，如" \n"则表示按照空格或换行分割
-*@param		vecStrList	[OUT]	分割后的字符串列表.注意：此列表仅保存了指针，里面的数据依赖于pszSrc
+*@param		vecStrList	[OUT]	分割后的字符串列表
 *@return	错误码，见PC_Lib.h
 */
-int  PCStrSplit(char *pszSrc, const char *pszDelim, std::vector<char*>& vecStrList);
+int  PCStrSplit(char *pszSrc, const char *pszDelim, std::vector<char*> &vecStrList);
 
 /**
 *@brief		将命令行参数解析到数组中（如果vecStrList已经有数据，则从最后添加，原来的数据不会被删除）

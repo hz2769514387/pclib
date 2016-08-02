@@ -45,10 +45,10 @@ protected:
 
 
 
-#include <pwd.h>
+
 int main(int argc, char* argv[])
 {
-    struct passwd* p = getpwnam("hz");
+  
 
     CPCConfig ffg1;
     std::map<string,string> ffm;

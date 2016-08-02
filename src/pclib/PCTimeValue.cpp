@@ -105,7 +105,21 @@ const CPCTimeValue CPCTimeValue::Now()
 const CPCTimeValue CPCTimeValue::TickCount()
 {
 #if defined(_WIN32)
-	return CPCTimeValue(GetTickCount());
+	static LARGE_INTEGER TicksPerSecond = { 0 };
+	if (!TicksPerSecond.QuadPart)
+	{
+		QueryPerformanceFrequency(&TicksPerSecond);
+	}
+	LARGE_INTEGER Tick;
+	QueryPerformanceCounter(&Tick);
+
+	long long Seconds = Tick.QuadPart / TicksPerSecond.QuadPart;
+	long long LeftPart = Tick.QuadPart - (TicksPerSecond.QuadPart*Seconds);
+	long long MillSeconds = LeftPart * 1000 / TicksPerSecond.QuadPart;
+	long long nRet = Seconds * 1000 + MillSeconds;
+	
+	PC_LOG_ASSERT(nRet > 0, "nRet <= 0");
+	return CPCTimeValue(nRet);
 #else
 	/* 需要加上编译选项 -lrt */
 	struct timespec ts;

@@ -248,7 +248,7 @@ int CPCConfig::OpenFileAndParseToMap(const char * pszFilePath)
 		else
 		{
 			//实际数据
-			int nPos = -1;
+			size_t nPos = 0;
             for (size_t i = 0; i < nRealLineLen; i++)
 			{
 				if (pRealLine[i] == '=')
@@ -258,10 +258,10 @@ int CPCConfig::OpenFileAndParseToMap(const char * pszFilePath)
 					break;
 				}
 			}
-			if (nPos == -1 || nPos == 0)
+			if ( nPos == 0)
 			{
                 //没找到等号或等号在第一个字符
-				PC_ERROR_LOG("find = err! nPos = %d", nPos);
+				PC_ERROR_LOG("find = err! nPos = %lu", nPos);
 				return PC_RESULT_FORMATERROR;
 			}
 			pairLine.first = PCStrTrim(pRealLine, " \n\t\r");
