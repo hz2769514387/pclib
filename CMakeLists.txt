@@ -106,6 +106,7 @@ if(LP2_OS_LINUX)
 		m
 		dl
 		g
+		Wall
 	)
 	target_link_libraries(LogicTest ${PCLib_l_LIB_PARAMS})
 endif()

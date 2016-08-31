@@ -211,6 +211,7 @@
 #include <string.h>
 #include <time.h>  
 #include <errno.h>
+#include <assert.h>
 
 //STL
 #include <string>
@@ -224,6 +225,9 @@
 #include <algorithm>
 #include <functional>
 #include <regex>
+#include <atomic>
+#include <limits>
+
 
 //PCLIB库内部的C接口头文件
 #include "PCUtilCheckSum.h"

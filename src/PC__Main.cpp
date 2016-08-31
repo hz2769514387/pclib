@@ -8,7 +8,7 @@
 #include "pclib/PCService_Win.h"
 #include "pclib/PCBlockingQueue.h"
 #include "pclib/PCBuffer.h"
-
+#include "pclib/PCDisruptor.hpp"
 
 using namespace std;
 using namespace pclib;
@@ -33,7 +33,7 @@ public:
 			//CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "I AM RUNNING ! -- [%s]", szThreadName);
 			PCSleepMsec(50);
 		}
-		
+		CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "I AM over ! -- [%s]", szThreadName);
 	}
 
 	
@@ -48,7 +48,36 @@ protected:
 
 int main(int argc, char* argv[])
 {
-  
+
+	//TIME
+	char pszTimeS[50];
+	CPCTimeValue tv = CPCTimeValue::Now();
+	tv.Format("Sleep Start: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
+	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+
+	while (true)
+	{
+		if (tv.IsTimeOut(00))
+		{
+			break;
+		}
+	}
+	tv = CPCTimeValue::Now();
+	tv.Format("Sleep 1000ms End: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
+	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+
+	CPCTimeValue tv3;
+	tv3 = "2016-06-24 14:10:51";
+	tv3.Format("tv3 set: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
+	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+
+	tv3 -= 1000;
+	tv3.Format("tv3-=1000: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
+	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+
+	CPCTimeValue tv5 = CPCTimeValue::TickCount();
+	tv5.Format("tv5 tick: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
+	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
 
     CPCConfig ffg1;
     std::map<string,string> ffm;
@@ -90,35 +119,7 @@ int main(int argc, char* argv[])
 	}
 	
 
-	//TIME
-	char pszTimeS[50];
-    CPCTimeValue tv = CPCTimeValue::Now();
-	tv.Format("Sleep Start: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
-
-	while (true)
-	{
-        if (tv.IsTimeOut(00))
-		{
-			break;
-		}
-	}
-	tv = CPCTimeValue::Now();
-	tv.Format("Sleep 1000ms End: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
-
-    CPCTimeValue tv3;
-	tv3 = "2016-06-24 14:10:51";
-	tv3.Format("tv3 set: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
-
-	tv3 -= 1000;
-	tv3.Format("tv3-=1000: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
-
-	CPCTimeValue tv5 = CPCTimeValue::TickCount();
-	tv5.Format("tv5 tick: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+	
 
 	
 
