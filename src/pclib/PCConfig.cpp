@@ -3,6 +3,7 @@
 #include "PCConfig.h" 
 #include "PCUtilSystem.h"
 #include "PCUtilString.h"
+#include "PCLog.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -201,13 +202,13 @@ int CPCConfig::OpenFileAndParseToMap(const char * pszFilePath)
 		if (PC_SYS_ERRNO_FILENOTFIND == PCGetLastError())
 		{
 			//文件不存在时，也认为成功，认为是将文件内容解析到一个空的map中
-			PC_DEBUG_LOG("file not exist! filepath = %s", pszFilePath);
+			PC_TRACE_LOG("file not exist! filepath = %s", pszFilePath);
 			return PC_RESULT_SUCCESS;
 		}
 		else
 		{
 			//错误
-			PC_ERROR_LOG("openfile read fail! filepath = %s", pszFilePath);
+			PC_TRACE_LOG("openfile read fail! filepath = %s", pszFilePath);
 			return PC_RESULT_FILEOPEN;
 		}
 	}

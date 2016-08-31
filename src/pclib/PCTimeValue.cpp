@@ -1,5 +1,6 @@
 #include "PC_Lib.h"
 #include "PCTimeValue.h" 
+#include "PCLog.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -10,7 +11,7 @@ CPCTimeValue& CPCTimeValue::operator= (const char * pszTimeStamp)
 {
 	if (pszTimeStamp == NULL || strlen(pszTimeStamp) != PC_TIMESTAMP_LEN)
 	{
-		PC_LOG_ASSERT(true, "param error!pszTimeStmp=%s", pszTimeStamp);
+		PC_ASSERT(true, "param error!pszTimeStmp=%s", pszTimeStamp);
 		return *this;
 	}
 
@@ -34,7 +35,7 @@ CPCTimeValue& CPCTimeValue::operator= (const char * pszTimeStamp)
 	time_t tMakeTime = mktime(&tmTimeMsValue) * 1000;
 	if (tMakeTime < 0)
 	{
-		PC_LOG_ASSERT(true, "mktime error!pszTimeStmp=%s", pszTimeStamp);
+		PC_ASSERT(true, "mktime error!pszTimeStmp=%s", pszTimeStamp);
 		return *this;
 	}
 
@@ -47,7 +48,6 @@ int CPCTimeValue::Format(const char * pszFormatStr, char *pszResultBuf, unsigned
 {
 	if (pszFormatStr == NULL || pszFormatStr[0] == 0 || pszResultBuf == NULL || nResultBufSize == 0 || nResultBufSize < (strlen(pszFormatStr) + 10))
 	{
-		PC_ERROR_LOG("param error!pszFormatStr=%s,nResultBufSize=%u", pszFormatStr, nResultBufSize);
 		return PC_RESULT_PARAM;
 	}
 
@@ -60,13 +60,11 @@ int CPCTimeValue::Format(const char * pszFormatStr, char *pszResultBuf, unsigned
 #if defined (_WIN32)
 	if (0 != localtime_s(&tmTimeMsValue, &nSec))
 	{
-		PC_ERROR_LOG("localtime_s error! tSecond = %ld", nSec);
 		return PC_RESULT_SYSERROR;
 	}
 #else
 	if (NULL == localtime_r(&nSec, &tmTimeMsValue))
 	{
-		PC_ERROR_LOG("localtime_r error! tSecond = %ld", nSec);
 		return PC_RESULT_SYSERROR;
 	}
 #endif
@@ -97,7 +95,7 @@ const CPCTimeValue CPCTimeValue::Now()
 	/* 需要加上编译选项 -lrt */
 	struct timespec ts;
     int nRet = clock_gettime(CLOCK_REALTIME, &ts);
-    PC_LOG_ASSERT(nRet == 0, "clock_gettime fail!");
+    PC_ASSERT(nRet == 0, "clock_gettime fail!");
 	return CPCTimeValue((ts.tv_sec * 1000) + (ts.tv_nsec / 1000000));
 #endif
 }
@@ -118,13 +116,13 @@ const CPCTimeValue CPCTimeValue::TickCount()
 	long long MillSeconds = LeftPart * 1000 / TicksPerSecond.QuadPart;
 	long long nRet = Seconds * 1000 + MillSeconds;
 	
-	PC_LOG_ASSERT(nRet > 0, "nRet <= 0");
+	PC_ASSERT(nRet > 0, "nRet <= 0");
 	return CPCTimeValue(nRet);
 #else
 	/* 需要加上编译选项 -lrt */
 	struct timespec ts;
     int nRet = clock_gettime(CLOCK_MONOTONIC, &ts);
-    PC_LOG_ASSERT(nRet == 0, "clock_gettime fail!");
+    PC_ASSERT(nRet == 0, "clock_gettime fail!");
 	return CPCTimeValue((ts.tv_sec * 1000) + (ts.tv_nsec / 1000000));
 #endif
 }

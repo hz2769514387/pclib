@@ -40,7 +40,7 @@ public:
 		{
 			m_NotEmpty.Wait();
 		}
-		PC_LOG_ASSERT(!m_Deque.empty(),"queue is empty");
+		PC_ASSERT(!m_Deque.empty(),"queue is empty");
 		
 		T TFront(std::move(m_Deque.front()));
 

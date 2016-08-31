@@ -62,14 +62,14 @@ public:
 #else
 		pthread_condattr_t cond_attr;
 		int nErrorNo = pthread_condattr_init(&cond_attr);
-		PC_LOG_ASSERT(0 == nErrorNo, "pthread_condattr_init = %d£¡", nErrorNo);
+		PC_ASSERT(0 == nErrorNo, "pthread_condattr_init = %d£¡", nErrorNo);
 		std::shared_ptr<pthread_condattr_t> pThreadCondAttrPtr(&cond_attr, pthread_condattr_destroy);
 
 		nErrorNo = pthread_condattr_setclock(pThreadCondAttrPtr.get(), CLOCK_MONOTONIC);
-		PC_LOG_ASSERT(0 == nErrorNo, "pthread_condattr_setclock(CLOCK_MONOTONIC) = %d£¡", nErrorNo);
+		PC_ASSERT(0 == nErrorNo, "pthread_condattr_setclock(CLOCK_MONOTONIC) = %d£¡", nErrorNo);
 
 		nErrorNo = pthread_cond_init(&m_Cond, pThreadCondAttrPtr.get());
-		PC_LOG_ASSERT(0 == nErrorNo, "pthread_cond_init = %d£¡", nErrorNo);
+		PC_ASSERT(0 == nErrorNo, "pthread_cond_init = %d£¡", nErrorNo);
 #endif
 	}
 
@@ -95,7 +95,7 @@ public:
 		{
 			struct timespec ts;
             int nRet = clock_gettime(CLOCK_MONOTONIC, &ts);
-            PC_LOG_ASSERT(nRet == 0,  "clock_gettime fail");
+            PC_ASSERT(nRet == 0,  "clock_gettime fail");
 
 			ts.tv_sec += (nTimeoutMs/1000);
 			ts.tv_nsec += (nTimeoutMs%1000*1000000);

@@ -1,6 +1,7 @@
 #include "PC_Lib.h"
 #include "PCUtilMisc_Linux.h"
 #include "PCUtilSystem.h"
+#include "PCLog.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -175,7 +176,6 @@ int  PCResExist(int nResType, const char * pszPath)
 	//参数检查
 	if (nResType < 0 || nResType > 1 || pszPath == NULL || strlen(pszPath) == 0 || strlen(pszPath) > PC_MAX_PATH)
 	{
-		PC_ERROR_LOG("param error!nResType=%d,pszPath=%s", nResType, pszPath);
 		return 0;
 	}
 
@@ -224,7 +224,6 @@ int  PCMkdirRecursive(const char * pszPath)
 	//参数检查
 	if ( pszPath == NULL || pszPath[0] == 0 || strlen(pszPath) > PC_MAX_PATH)
 	{
-		PC_ERROR_LOG("param error! pszPath=%s", pszPath);
 		return PC_RESULT_PARAM;
 	}
 	size_t nPathLen = strlen(pszPath);
@@ -233,7 +232,6 @@ int  PCMkdirRecursive(const char * pszPath)
 	//如果是linux，不支持windows形式的盘符命名方式
 	if (nPathLen > 1 && pszPath[1] == ':')
 	{
-		PC_ERROR_LOG("param error,linux can't use windows type path! pszPath=%s", pszPath);
 		return PC_RESULT_PARAM;
 	}
 #endif
@@ -259,7 +257,6 @@ int  PCMkdirRecursive(const char * pszPath)
 				nRet = PCMakeDir(pszCheckPath);
 				if (nRet != 0)
 				{
-					PC_ERROR_LOG("mkdir(%s) = %d!", pszCheckPath, nRet);
 					return PC_RESULT_SYSERROR;
 				}
 			}

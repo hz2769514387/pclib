@@ -1,6 +1,7 @@
 //AddApplicationToExceptionList
 #include "PC_Lib.h"
 #include "PCUtilFirewall_Win.h"
+#include "PCLog.h"
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
 //////////////////////////////////////////////////////////////////////////
@@ -60,7 +61,7 @@ HRESULT AddApplicationToExceptionListW( WCHAR* strGameExeFullPath, WCHAR* strFri
  
     if( strGameExeFullPath == NULL || strFriendlyAppName == NULL ) 
     { 
-        PC_LOG_ASSERT( false ,"trGameExeFullPath == NULL || strFriendlyAppName == NULL"); 
+        PC_ASSERT( false ,"trGameExeFullPath == NULL || strFriendlyAppName == NULL"); 
         return E_INVALIDARG; 
     } 
  
@@ -136,7 +137,7 @@ HRESULT RemoveApplicationFromExceptionListW( WCHAR* strGameExeFullPath )
  
     if( strGameExeFullPath == NULL ) 
     { 
-		PC_LOG_ASSERT(false, "strGameExeFullPath == NULL");
+		PC_ASSERT(false, "strGameExeFullPath == NULL");
         return E_INVALIDARG; 
     } 
  
@@ -219,7 +220,7 @@ BOOL WINAPI CanLaunchMultiplayerGameW( WCHAR* strGameExeFullPath )
  
     if( strGameExeFullPath == NULL ) 
     { 
-		PC_LOG_ASSERT(false, "strGameExeFullPath == NULL");
+		PC_ASSERT(false, "strGameExeFullPath == NULL");
         return false; 
     } 
  

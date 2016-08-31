@@ -4,6 +4,7 @@
 #include "PCLock.h" 
 #include "PCUtilSystem.h"
 #include "PCService_Win.h"
+#include "PCLog.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -12,7 +13,7 @@ PCLIB_NAMESPACE_BEG
 
 CPCWinServicesManage::CPCWinServicesManage(const char *  pszServiceName)
 {
-	PC_LOG_ASSERT((pszServiceName && (strlen(pszServiceName) < PC_MAX_PATH)), "pszServiceName == NULL!");
+	PC_ASSERT((pszServiceName && (strlen(pszServiceName) < PC_MAX_PATH)), "pszServiceName == NULL!");
 	strcpy(m_pszServiceName, pszServiceName);
 
 	m_hSCManager = NULL;
@@ -206,7 +207,7 @@ int  CPCWinServiceInstance::ServiceEntry(const char * pszServiceName, PCWinSvcCa
 	if (m_NTSvcStartCallBack != NULL)
 	{
 		//已经调用成功过一次了，不能重复调用
-		PC_DEBUG_LOG("pszServiceName (%s) is already inited!  ", pszServiceName);
+		PC_TRACE_LOG("pszServiceName (%s) is already inited!  ", pszServiceName);
 		return PC_RESULT_SUCCESS;
 	}
 	if (NULL == pszServiceName || 0 == pszServiceName[0] || strlen(pszServiceName) >= PC_MAX_PATH || NULL == lpfnStartCallBack || NULL == lpfnStopCallBack)
@@ -249,7 +250,7 @@ void __stdcall CPCWinServiceInstance::PCWinNTServiceMain(DWORD dwNumServicesArgs
 			PC_ERROR_LOG("RegisterServiceCtrlHandler err!m_pszServiceName = %s ", m_pszServiceName);
 			return;
 		}
-		PC_DEBUG_LOG("Service(%s) is  register success", m_pszServiceName);
+		PC_TRACE_LOG("Service(%s) is  register success", m_pszServiceName);
 
 		//服务准备启动
 		m_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
@@ -275,14 +276,14 @@ void __stdcall CPCWinServiceInstance::PCWinNTServiceMain(DWORD dwNumServicesArgs
 		{
 			PC_ERROR_LOG("SetServiceStatus err! start fail. m_pszServiceName = %s ", m_pszServiceName);
 		}
-		PC_DEBUG_LOG("Service(%s) Started! ", m_pszServiceName);
+		PC_TRACE_LOG("Service(%s) Started! ", m_pszServiceName);
 
 		//运行提供者的回调函数
-		PC_LOG_ASSERT(m_NTSvcStartCallBack, "fatal err! m_NTSvcCallBack = NULL.m_pszServiceName (%s) ", m_pszServiceName);
+		PC_ASSERT(m_NTSvcStartCallBack, "fatal err! m_NTSvcCallBack = NULL.m_pszServiceName (%s) ", m_pszServiceName);
 		int nRet = m_NTSvcStartCallBack();
 
 		//回调函数返回，服务停止
-		PC_DEBUG_LOG("Service(%s) Stoped! ExitCode = %d ", m_pszServiceName, nRet);
+		PC_TRACE_LOG("Service(%s) Stoped! ExitCode = %d ", m_pszServiceName, nRet);
 		m_status.dwCurrentState = SERVICE_STOPPED;
 		if (!SetServiceStatus(m_hServiceStatus, &m_status))
 		{
@@ -298,7 +299,7 @@ void __stdcall CPCWinServiceInstance::PCWinNTServiceMain(DWORD dwNumServicesArgs
 //服务控制，收到这个信号的是另一个线程
 void __stdcall CPCWinServiceInstance::PCServiceControlHander(DWORD dwControl)
 {
-	PC_LOG_ASSERT(m_hServiceStatus, "fatal err! m_hServiceStatus = NULL.m_pszServiceName(%s)", m_pszServiceName);
+	PC_ASSERT(m_hServiceStatus, "fatal err! m_hServiceStatus = NULL.m_pszServiceName(%s)", m_pszServiceName);
 
 	int nRet = 0;
 	switch (dwControl)

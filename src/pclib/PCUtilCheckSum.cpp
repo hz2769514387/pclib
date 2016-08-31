@@ -215,25 +215,25 @@ int  PCGetHMac(int nAlgo, const unsigned char *pszSrc, unsigned int nSrcLen, con
 	nRet = MD5_Init(&context);
 	if (0 == nRet)
 	{
-		PC_DEBUG_LOG("MD5_Init error!nSrcLen=%u", nSrcLen);
+		PC_TRACE_LOG("MD5_Init error!nSrcLen=%u", nSrcLen);
 		return PC_RESULT_SYSERROR;
 	}
 	nRet = MD5_Update(&context, szIpad, PC_HMAC_MD5_BLOCK_LEN);
 	if (0 == nRet)
 	{
-		PC_DEBUG_LOG("MD5_Update szIpad error!PC_HMAC_MD5_BLOCK_LEN=%u", PC_HMAC_MD5_BLOCK_LEN);
+		PC_TRACE_LOG("MD5_Update szIpad error!PC_HMAC_MD5_BLOCK_LEN=%u", PC_HMAC_MD5_BLOCK_LEN);
 		return PC_RESULT_SYSERROR;
 	}
 	nRet = MD5_Update(&context, pszSrc, nSrcLen);
 	if (0 == nRet)
 	{
-		PC_DEBUG_LOG("MD5_Update pszSrc error!nSrcLen=%u", nSrcLen);
+		PC_TRACE_LOG("MD5_Update pszSrc error!nSrcLen=%u", nSrcLen);
 		return PC_RESULT_SYSERROR;
 	}
 	nRet = MD5_Final(szTmpHMac, &context);
 	if (0 == nRet)
 	{
-		PC_DEBUG_LOG("MD5_Final szTmpHMac error!nSrcLen=%u", nSrcLen);
+		PC_TRACE_LOG("MD5_Final szTmpHMac error!nSrcLen=%u", nSrcLen);
 		return PC_RESULT_SYSERROR;
 	}
 
@@ -248,25 +248,25 @@ int  PCGetHMac(int nAlgo, const unsigned char *pszSrc, unsigned int nSrcLen, con
 	nRet = MD5_Init(&context);
 	if (0 == nRet)
 	{
-		PC_DEBUG_LOG("MD5_Init error!nSrcLen=%u", nSrcLen);
+		PC_TRACE_LOG("MD5_Init error!nSrcLen=%u", nSrcLen);
 		return PC_RESULT_SYSERROR;
 	}
 	nRet = MD5_Update(&context, szOpad, PC_HMAC_MD5_BLOCK_LEN);
 	if (0 == nRet)
 	{
-		PC_DEBUG_LOG("MD5_Update szOpad error!PC_HMAC_MD5_BLOCK_LEN=%u", PC_HMAC_MD5_BLOCK_LEN);
+		PC_TRACE_LOG("MD5_Update szOpad error!PC_HMAC_MD5_BLOCK_LEN=%u", PC_HMAC_MD5_BLOCK_LEN);
 		return PC_RESULT_SYSERROR;
 	}
 	nRet = MD5_Update(&context, szTmpHMac, PC_MD5_LEN);
 	if (0 == nRet)
 	{
-		PC_DEBUG_LOG("MD5_Update szTmpHMac error!nSrcLen=%u", nSrcLen);
+		PC_TRACE_LOG("MD5_Update szTmpHMac error!nSrcLen=%u", nSrcLen);
 		return PC_RESULT_SYSERROR;
 	}
 	nRet = MD5_Final(pszMd5, &context);
 	if (0 == nRet)
 	{
-		PC_DEBUG_LOG("MD5_Final pszMd5 error!nSrcLen=%u", nSrcLen);
+		PC_TRACE_LOG("MD5_Final pszMd5 error!nSrcLen=%u", nSrcLen);
 		return PC_RESULT_SYSERROR;
 	}
 	return PC_RESULT_SUCCESS;

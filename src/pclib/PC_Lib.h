@@ -26,6 +26,9 @@
 #define PCLIB_NAMESPACE_BEG		namespace pclib {
 #define PCLIB_NAMESPACE_END		}
 
+//断言宏
+#define PC_ASSERT(_Expression,_logFmt,...)	if(!(_Expression)){printf(_logFmt, ## __VA_ARGS__);abort();} 
+
 //本地路径长度
 #define PC_MAX_PATH				(260)
 
@@ -239,6 +242,7 @@
 #include "PCUtilSystem.h"
 #include "PCUtilRandom.h"
 
+
 //ZLIB
 #include "../zlib-1.2.8/zlib.h"
 
@@ -302,27 +306,15 @@ private:
 };
 
 /**
-*@brief		调试类，定义为最先初始化的类
-*			【警告】使用约定：外部统一使用g_Debug对象，不允许自行构造本类的对象。
+*@brief		pblib类，定义为最先初始化和最后反初始化的类
 *			【注意】调试类完全独立，不允许使用库里面的任何代码。
-*			【注意】日志位置暂时在代码中写死。
 */
-class CPCDebug :CPCNoCopyable
+class CPCLib :CPCNoCopyable
 {
 public:
-	explicit CPCDebug();
-	virtual ~CPCDebug();
+	explicit CPCLib();
+	virtual ~CPCLib();
 
-public:
-	void WriteLibLogFmt(const char* pFuncName, unsigned long ulLine, const char* pszLevel, const char* pszFmt, ...);
-
-	static int  PCGetSysTime(int &nYear, int &nMonth, int &nDay, int &nHour, int &nMinute, int &nSecond, int &nMilliSecond);
-	static int  PCGetAppName(char* szAppName);
-	static unsigned int PCRandUInt();
-private:
-	bool PCOpenFile(FILE* &pLibLogFile, char pszTimeBuf[PC_MAX_PATH]);
-	static char m_pszLogDir[PC_MAX_PATH];
-	static bool m_bUsedOnceAtLeast;
 public:
 	//OPENSSL的多线程回调设置，外部不要使用
 	static PC_REC_MUTEX_HANDLE	*m_lock_cs;
@@ -332,13 +324,6 @@ public:
 	static void PCSSL_ThreadID_CallBack(CRYPTO_THREADID* id);
 	static void PCSSL_Lock_CallBack(int mode, int type, const char *file, int line);
 };
-extern CPCDebug g_PCDebug;
-
-//库本身的错误日志和断言（和日志库不同，日志库是提供给外部用的），日志位置如果要修改，注意修改CPCDebug类文件夹创建代码
-#define PC_ERROR_LOG(_logFmt, ...)					g_PCDebug.WriteLibLogFmt(__FUNCTION__,__LINE__,"ERROR",_logFmt, ## __VA_ARGS__)
-#define PC_LOG_ASSERT(_Expression,_logFmt,...)		if(!(_Expression)){g_PCDebug.WriteLibLogFmt(__FUNCTION__,__LINE__,"FATAL",_logFmt, ## __VA_ARGS__);exit(1);} 
-//库本身的调试日志，发布版本时需要关掉
-#define PC_DEBUG_LOG(_logFmt, ...)					g_PCDebug.WriteLibLogFmt(__FUNCTION__,__LINE__,"DEBUG",_logFmt, ## __VA_ARGS__)
 
 
 //////////////////////////////////////////////////////////////////////////

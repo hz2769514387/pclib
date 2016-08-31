@@ -61,7 +61,7 @@ public:
 	*@param		pszFmt	[IN]	日志内容格式串/日志内容
 	*@return	错误码，见PCDebug.h
 	*/
-	int WriteLogFmt(int nLevel, const char* pszFmt, ...);
+	int WriteLogFmt(const char* pFuncName, unsigned long ulLine, int nLevel, const char* pszFmt, ...);
 	/**
 	*@brief		写二进制数据日志，日志写完毕后添加换行符
 	*@param		nLevel		[IN]	当条日志的日志等级
@@ -70,7 +70,7 @@ public:
 	*@param		nBytesLen	[IN]	数据日志内容长度
 	*@return	错误码，见PC_Lib.h
 	*/
-	int WriteLogBytes(int nLevel, const char* pszTips, const unsigned char* pszBytes, unsigned int nBytesLen);
+	int WriteLogBytes(const char* pFuncName, unsigned long ulLine, int nLevel, const char* pszTips, const unsigned char* pszBytes, unsigned int nBytesLen);
 private:
 	CPCLog();
 	int CheckLogger(char pszTimeBuf[PC_MAX_PATH]);
@@ -87,8 +87,18 @@ private:
 
 	//当前文件的年月日。
 	char m_pszCurrFileTime[PC_MAX_PATH];
+
+	//pclib类的一个实例，负责整个库的初始化和反初始化
+	CPCLib m_DO_NOT_DELETE_ME;
 };
 
+//日志宏
+#define PC_TRACE_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelTrace,_logFmt, ## __VA_ARGS__)
+#define PC_DEBUG_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelDebug,_logFmt, ## __VA_ARGS__)
+#define PC_INFO_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelInfo,_logFmt, ## __VA_ARGS__)
+#define PC_ERROR_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelWarn,_logFmt, ## __VA_ARGS__)
+#define PC_WARN_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelError,_logFmt, ## __VA_ARGS__)
+#define PC_FATAL_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelFatal,_logFmt, ## __VA_ARGS__)
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_END

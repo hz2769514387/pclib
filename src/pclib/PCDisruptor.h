@@ -560,7 +560,7 @@ inline int64_t Barrier::wait_for (int64_t pos) const
     }
   }
 
-  assert (min_pos != kMaxInt64Value);
+  PC_ASSERT(min_pos != kMaxInt64Value,"min_pos != kMaxInt64Value");
   return last_min_ = min_pos;
 }
 

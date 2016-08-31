@@ -23,7 +23,7 @@ CPCLog::CPCLog()
 	//日志默认属性
 	strcpy(m_pszLogPath, "./logs/");
 	m_pFmtBuff = new char[PC_LOG_LINE_MAX_LEN];
-	PC_LOG_ASSERT(m_pFmtBuff != NULL, "m_pFmtBuff分配内存失败！");
+	PC_ASSERT(m_pFmtBuff != NULL, "m_pFmtBuff分配内存失败！");
 
 	memset(m_pFmtBuff, 0, PC_LOG_LINE_MAX_LEN);
 	memset(m_pszCurrFileTime, 0, PC_MAX_PATH);
@@ -62,7 +62,6 @@ int CPCLog::SetLogAttr(int nLevel, int nGenMode, bool bStdout, const char * pszL
 		nGenMode < eGenModeHour || nGenMode > eGenModeDay ||
 		pszLogPath == NULL || strlen(pszLogPath) == 0 || strlen(pszLogPath) > (PC_MAX_PATH-24))
 	{
-		PC_ERROR_LOG("params error! nLevel=%d,nGenMode=%d,bStdout=%d,pszLogPath=%s", nLevel, nGenMode, bStdout, pszLogPath);
 		return PC_RESULT_PARAM;
 	}
 	size_t nLogPathLen = strlen(pszLogPath);
@@ -94,11 +93,10 @@ int CPCLog::SetLogAttr(int nLevel, int nGenMode, bool bStdout, const char * pszL
 	return PC_RESULT_SUCCESS;
 }
 
-int CPCLog::WriteLogFmt(int nLevel, const char* pszFmt, ...)
+int CPCLog::WriteLogFmt(const char* pFuncName, unsigned long ulLine, int nLevel, const char* pszFmt, ...)
 {
 	if (nLevel < eLevelClose || nLevel > eLevelFatal || pszFmt == NULL)
 	{
-		PC_ERROR_LOG("params error! nLevel=%d ", nLevel);
 		return PC_RESULT_PARAM;
 	}
 	CPCGuard guard(m_Mutex);
@@ -127,13 +125,12 @@ int CPCLog::WriteLogFmt(int nLevel, const char* pszFmt, ...)
 	nRet = vsprintf(m_pFmtBuff, pszFmt, ap);
     if(nRet < 0)
     {
-        PC_ERROR_LOG("vsprintf error! maybe log is too long ");
         return PC_RESULT_SYSERROR;
     }
 	va_end(ap);
 
 	unsigned long ulThradID = PCGetCurrentThreadID();
-	fprintf(m_pLogFile, "[%s][%s][TID%lu]%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, m_pFmtBuff);
+	fprintf(m_pLogFile, "%s %s %lu %s:%lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
 	if(PC_LOG_WRITE_ALWAYS)
 	{
 		fflush(m_pLogFile);
@@ -142,17 +139,16 @@ int CPCLog::WriteLogFmt(int nLevel, const char* pszFmt, ...)
 	//写到控制台
 	if (m_bStdout)
 	{
-		printf("[%s][%s][TID%lu]%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, m_pFmtBuff);
+		printf("%s %s %lu %s:%lu %s\r\n\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
 	}
 	return PC_RESULT_SUCCESS;
 }
 
-int CPCLog::WriteLogBytes(int nLevel, const char* pszTips, const unsigned char* pszBytes, unsigned int nBytesLen)
+int CPCLog::WriteLogBytes(const char* pFuncName, unsigned long ulLine, int nLevel, const char* pszTips, const unsigned char* pszBytes, unsigned int nBytesLen)
 {
 	size_t nTipsLen = pszTips ? strlen(pszTips) : 0;
 	if (nLevel < eLevelClose || nLevel > eLevelFatal || nBytesLen > (PC_LOG_LINE_MAX_LEN - nTipsLen - 64))
 	{
-		PC_ERROR_LOG("params error! nLevel=%d , nBytesLen=%u", nLevel, nBytesLen);
 		return PC_RESULT_PARAM;
 	}
 	CPCGuard guard(m_Mutex);
@@ -182,7 +178,7 @@ int CPCLog::WriteLogBytes(int nLevel, const char* pszTips, const unsigned char* 
 		return nRet;
 	}
 	unsigned long ulThradID = PCGetCurrentThreadID();
-	fprintf(m_pLogFile, "[%s][%s][TID%lu]%s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pszTips,m_pFmtBuff);
+	fprintf(m_pLogFile, "%s %s %lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
 	if (PC_LOG_WRITE_ALWAYS)
 	{
 		fflush(m_pLogFile);
@@ -191,7 +187,7 @@ int CPCLog::WriteLogBytes(int nLevel, const char* pszTips, const unsigned char* 
 	//写到控制台
 	if (m_bStdout)
 	{
-		printf("[%s][%s][TID%lu]%s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pszTips, m_pFmtBuff);
+		printf("%s %s %lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
 	}
 	return PC_RESULT_SUCCESS;
 }
@@ -200,7 +196,6 @@ int CPCLog::CheckLogger(char pszTimeBuf[PC_MAX_PATH] )
 {
 	if (pszTimeBuf == NULL)
 	{
-		PC_ERROR_LOG("pszTimeBuf==NULL!");
 		return PC_RESULT_PARAM;
 	}
 
@@ -216,7 +211,6 @@ int CPCLog::CheckLogger(char pszTimeBuf[PC_MAX_PATH] )
 	}
 	else
 	{
-		PC_ERROR_LOG("m_nGenMode = %d error!", m_nGenMode);
 		return PC_RESULT_SYSERROR;
 	}
 
@@ -275,7 +269,6 @@ int CPCLog::CheckLogger(char pszTimeBuf[PC_MAX_PATH] )
 		m_pLogFile =  fopen (pszLogFileName, "a+");
 		if (NULL == m_pLogFile)
 		{
-			PC_ERROR_LOG("fopen(%s) = NULL!", pszLogFileName);
 			m_pLogFile = NULL;
 			return PC_RESULT_FILEOPEN;
 		}

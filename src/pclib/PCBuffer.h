@@ -4,6 +4,7 @@
 # pragma once
 #endif
 #include "PCLock.h" 
+#include "PCLog.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -56,7 +57,6 @@ public:
 	{
 		if (!data)
 		{
-			PC_DEBUG_LOG("append NULL.");
 			return;
 		}
 		CheckBufIncrease(len);
@@ -70,7 +70,6 @@ public:
 	{
 		if (!pstr)
 		{
-			PC_DEBUG_LOG("append NULL.");
 			return;
 		}
 		Append(pstr, strlen(pstr));

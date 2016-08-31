@@ -2,6 +2,7 @@
 #include "PCLock.h" 
 #include "PCTimeValue.h" 
 #include "PCThread.h"  
+#include "PCLog.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -40,15 +41,15 @@ extern "C" {
 	#endif
 	{
 		CPCThread* pThrBase = static_cast<CPCThread*>(obj);
-		PC_LOG_ASSERT(pThrBase != NULL, "static_cast<CPCThreadBase*>(obj) = NULL！");
+		PC_ASSERT(pThrBase != NULL, "static_cast<CPCThreadBase*>(obj) = NULL！");
 
-		PC_DEBUG_LOG("THREAD PCThreadStartAddr START!");
+		PC_TRACE_LOG("THREAD PCThreadStartAddr START!");
 		pThrBase->SetRunning(true);
 		pThrBase->SetExited(false);
 		pThrBase->Svc();
 		pThrBase->SetRunning(false);
 		pThrBase->SetExited(true);
-        PC_DEBUG_LOG("THREAD PCThreadStartAddr END!");
+        PC_TRACE_LOG("THREAD PCThreadStartAddr END!");
 		
 	#if defined (_WIN32)
         return 0;
@@ -84,7 +85,7 @@ bool CPCThread::StartThread(int nTimeoutMs)
 	//设置线程属性为可分离的
 	pthread_attr_t pthread_attr;
 	int nErrorNo = pthread_attr_init(&pthread_attr);
-	PC_LOG_ASSERT(0 == nErrorNo, "pthread_attr_init = %d！", nErrorNo);
+	PC_ASSERT(0 == nErrorNo, "pthread_attr_init = %d！", nErrorNo);
     std::shared_ptr<pthread_attr_t> pThreadAttrPtr(&pthread_attr, pthread_attr_destroy);
 
 	nErrorNo = pthread_attr_setdetachstate(pThreadAttrPtr.get(), PTHREAD_CREATE_DETACHED);
@@ -123,7 +124,7 @@ bool CPCThread::StartThread(int nTimeoutMs)
 		PCSleepMsec(5);
 	}
 	m_bIsCreated = true;
-	PC_DEBUG_LOG("THREAD Created SUCCESS! m_nStackSize=%u", m_nStackSize);
+	PC_TRACE_LOG("THREAD Created SUCCESS! m_nStackSize=%u", m_nStackSize);
 	return true;
 }
 

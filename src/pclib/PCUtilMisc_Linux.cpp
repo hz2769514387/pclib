@@ -1,5 +1,6 @@
 #include "PC_Lib.h"
 #include "PCUtilMisc_Linux.h"
+#include "PCLog.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG

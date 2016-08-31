@@ -8,7 +8,8 @@
 #include "pclib/PCService_Win.h"
 #include "pclib/PCBlockingQueue.h"
 #include "pclib/PCBuffer.h"
-#include "pclib/PCDisruptor.hpp"
+#include "pclib/PCDisruptor.h"
+
 
 using namespace std;
 using namespace pclib;
@@ -22,7 +23,8 @@ public:
 	void init(int  name)
 	{
 		sprintf(szThreadName, "%d",name);
-		CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "I AM INIT ! -- [%s]", szThreadName);
+		
+		PC_INFO_LOG("I AM INIT ! -- [%s]", szThreadName);
 
 		
 	}
@@ -30,10 +32,10 @@ public:
 	{
 		while (m_bRunning)
 		{
-			//CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "I AM RUNNING ! -- [%s]", szThreadName);
+			//PC_INFO_LOG( "I AM RUNNING ! -- [%s]", szThreadName);
 			PCSleepMsec(50);
 		}
-		CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "I AM over ! -- [%s]", szThreadName);
+		PC_INFO_LOG("I AM over ! -- [%s]", szThreadName);
 	}
 
 	
@@ -45,15 +47,15 @@ protected:
 
 
 
-
 int main(int argc, char* argv[])
 {
+	CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "./logs");
 
 	//TIME
 	char pszTimeS[50];
 	CPCTimeValue tv = CPCTimeValue::Now();
 	tv.Format("Sleep Start: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+	PC_INFO_LOG( "%s", pszTimeS);
 
 	while (true)
 	{
@@ -64,20 +66,20 @@ int main(int argc, char* argv[])
 	}
 	tv = CPCTimeValue::Now();
 	tv.Format("Sleep 1000ms End: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+	PC_INFO_LOG( "%s", pszTimeS);
 
 	CPCTimeValue tv3;
 	tv3 = "2016-06-24 14:10:51";
 	tv3.Format("tv3 set: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+	PC_INFO_LOG( "%s", pszTimeS);
 
 	tv3 -= 1000;
 	tv3.Format("tv3-=1000: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+	PC_INFO_LOG( "%s", pszTimeS);
 
 	CPCTimeValue tv5 = CPCTimeValue::TickCount();
 	tv5.Format("tv5 tick: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelFatal, "%s", pszTimeS);
+	PC_INFO_LOG( "%s", pszTimeS);
 
     CPCConfig ffg1;
     std::map<string,string> ffm;
@@ -110,28 +112,15 @@ int main(int argc, char* argv[])
 
 	//RANDOM
 	unsigned char pszRand[10];
-	for (int i = 0; i < 625; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		PCGetRandomBytes(pszRand, 10);
 	
-		CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelWarn, "随机数：%u", PCGetRandomRange(3, 20));
-		CPCLog::GetRoot()->WriteLogBytes(CPCLog::eLevelWarn, "随机数：", pszRand, 10);
+		PC_INFO_LOG("随机数：%u", PCGetRandomRange(3, 20));
+		CPCLog::GetRoot()->WriteLogBytes(__FUNCTION__, __LINE__, CPCLog::eLevelWarn, "随机数：", pszRand, 10);
 	}
 	
 
-	
-
-	
-
-
-	const char *szReg = "(\\w+)://((\\w+\\.)*\\w+)((/\\w*)*)(/\\w+\\.\\w+)?";
-	const char *szStr = "http://www.cppprog.com/2009/0112/48.html";
-
-	{
-		std::regex reg(szReg);
-		bool r = std::regex_match(szStr, reg);
-
-	}
    
 	unsigned char szout[1111] = {0};
 	PCDispHexStr2Bytes("40313931202030313536353139363133313238313237333630352030313032303530303138363737373734323538202020202020202020313132332020203132332020202020202020202020202020202020202020202020202020202020303030303131303030303031",
@@ -177,7 +166,7 @@ int main(int argc, char* argv[])
 	PCSleepMsec(100);
 	
 
-	CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeHour, true, "./logs");
+	
 
 
 	unsigned char pszDest[122] = { 0 };
@@ -194,7 +183,7 @@ int main(int argc, char* argv[])
 
 	int NRET = PCGetHMac(PC_ALGO_MD5, (unsigned char*)psrc, psrcLen, (unsigned char*)pkey, pkeyLen, pszDest);
 	
-	CPCLog::GetRoot()->WriteLogBytes(CPCLog::eLevelTrace, "MD5：", pszDest, 16);
+	CPCLog::GetRoot()->WriteLogBytes(__FUNCTION__, __LINE__, CPCLog::eLevelTrace, "MD5：", pszDest, 16);
 	
 
 	unsigned char pszDest12[1001] = { 0 };
@@ -206,7 +195,7 @@ int main(int argc, char* argv[])
 	
 	unsigned long ulCOA32;
 	int FF = PCGetFileCOA32("d:\\1.1", ulCOA32);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelTrace, "CRC：%x", ulCOA32);
+	PC_INFO_LOG( "CRC：%x", ulCOA32);
 
 	
 
@@ -214,12 +203,12 @@ int main(int argc, char* argv[])
 	const char * in = "你好世界。         <p>尊敬的用户，您好！</p><p>抱歉，服务器出小差了，请稍后再试。< / p>";
 	unsigned char pszDestBuf[122] = { 0 };
 	int ret = PCBytesGZipCompress((unsigned char*)in, strlen(in), pszDestBuf, 122);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelTrace, "压缩后：%d字节", ret);
-	CPCLog::GetRoot()->WriteLogBytes(CPCLog::eLevelTrace, "数据：", pszDestBuf, ret);
+	PC_INFO_LOG( "压缩后：%d字节", ret);
+	CPCLog::GetRoot()->WriteLogBytes(__FUNCTION__, __LINE__, CPCLog::eLevelTrace, "数据：", pszDestBuf, ret);
 
 	unsigned char pszDestBuf2[122] = { 0 };
 	ret = PCBytesGZipDeCompress(pszDestBuf, ret, pszDestBuf2, 122);
-	CPCLog::GetRoot()->WriteLogFmt(CPCLog::eLevelTrace, "解压缩后：%d字节， 数据：%s", ret, pszDestBuf2);
+	PC_INFO_LOG( "解压缩后：%d字节， 数据：%s", ret, pszDestBuf2);
 
 	PCSleepMsec(1000);
 
