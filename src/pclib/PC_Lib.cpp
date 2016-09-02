@@ -11,7 +11,11 @@ CPCLib::CPCLib()
 	/* ---- 库初始化内容统一在此处，以下内容不允许调用本类和系统函数之外的函数 ---- */
 
 	//设置字符编码
-	setlocale(LC_ALL, "chs");
+#if defined (_WIN32)
+	PC_ASSERT(setlocale(LC_ALL, "chs"), "INIT setlocale(LC_ALL, chs) fail!");
+#else
+	PC_ASSERT(setlocale(LC_ALL, "zh_CN.gbk"), "INIT setlocale(LC_ALL, zh_CN.gbk) fail!");
+#endif
 
 	//网络初始化
 #if defined (_WIN32)
@@ -24,9 +28,6 @@ CPCLib::CPCLib()
 #else
     //防止linux下网络通信时write函数产生的SIGPIPE信号导致程序退出
 	signal(SIGPIPE, SIG_IGN);
-
-    //注册中断键处理程序
-    signal(SIGINT,CPCLib::ExitPCLib);
 #endif
 
 	//OPENSSL初始化
@@ -51,11 +52,6 @@ CPCLib::CPCLib()
 
 CPCLib::~CPCLib()
 {
-	CPCLib::CleanPCLib();
-}
-
-void CPCLib::CleanPCLib()
-{
 	//清理WSA库
 #if defined (_WIN32)
 	WSACleanup();
@@ -73,13 +69,6 @@ void CPCLib::CleanPCLib()
 		OPENSSL_free(m_lock_cs);
 		m_lock_cs = NULL;
 	}
-}
-
-void CPCLib::ExitPCLib(int nExitCode)
-{
-	CPCLib::CleanPCLib();
-	exit(nExitCode);
-	return;
 }
 
 

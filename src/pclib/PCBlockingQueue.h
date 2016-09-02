@@ -21,9 +21,10 @@ public:
 		: m_Mutex()
 		, m_NotEmpty(m_Mutex)
 		, m_UntilEmpty(m_Mutex)
+		, m_Deque()
 	{}
 
-	void Put(const T& v)
+	void Put(T&& v)
 	{
 		CPCGuard guard(m_Mutex);
 
@@ -84,6 +85,13 @@ public:
 	{
 		CPCGuard guard(m_Mutex);
 		return m_Deque.empty();
+	}
+
+	void Clear(void)
+	{
+		CPCGuard guard(m_Mutex);
+		m_Deque.clear();
+		m_UntilEmpty.Notify();
 	}
 	
 private:

@@ -18,6 +18,7 @@ PCLIB_NAMESPACE_BEG
 
 /**
 *@brief		日志类
+*			[警告]日志类使用了pclib中的锁、日期时间处理、文件夹处理的函数，所以pclib中这些函数不能写日志，以免产生死循环
 */
 class CPCLog :CPCNoCopyable
 {

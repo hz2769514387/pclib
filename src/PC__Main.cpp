@@ -47,9 +47,22 @@ protected:
 
 
 
+
+
 int main(int argc, char* argv[])
 {
-	CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "./logs");
+	std::vector<wchar_t> pszDestx;
+	int xkx = PCMbsToUnicode("zhong¹ú", pszDestx,false);
+	
+
+	std::vector<char> pszDestc;
+	xkx = PCUnicodeToMbs(L"zhong¹ú1", pszDestc,true);
+	PC_INFO_LOG("%s", &pszDestc[0]);
+	xkx = PCUnicodeToMbs(L"zhong¹ú2", pszDestc, false);
+	PC_INFO_LOG("%s", &pszDestc[0]);
+
+
+	return 0;
 
 	//TIME
 	char pszTimeS[50];
@@ -105,10 +118,10 @@ int main(int argc, char* argv[])
 	
 
 	//BLOCKINGQUEUE
-	CPCBlockingQueue<int> queue;
-	queue.Put(44);
-    int cc = queue.Front();
-    int aa = queue.Take();
+	CPCBlockingQueue<CPCTimeValue> queue;
+	queue.Put(CPCTimeValue(44));
+	CPCTimeValue cc = queue.Front();
+	CPCTimeValue aa = queue.Take();
 
 	//RANDOM
 	unsigned char pszRand[10];

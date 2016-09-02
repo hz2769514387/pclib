@@ -236,6 +236,7 @@
 #include "PCUtilCheckSum.h"
 #include "PCUtilFirewall_Win.h"
 #include "PCUtilMisc_Linux.h"
+#include "PCUtilMisc_Win.h"
 #include "PCUtilNetwork.h"
 #include "PCUtilString.h"
 #include "PCUtilSymEncrypt.h"
@@ -307,7 +308,7 @@ private:
 
 /**
 *@brief		pblib类，定义为最先初始化和最后反初始化的类
-*			【注意】调试类完全独立，不允许使用库里面的任何代码。
+*			【注意】此类先于日志类创建，必须完全独立，不允许使用库里面的任何代码。
 */
 class CPCLib :CPCNoCopyable
 {
@@ -318,8 +319,6 @@ public:
 public:
 	//OPENSSL的多线程回调设置，外部不要使用
 	static PC_REC_MUTEX_HANDLE	*m_lock_cs;
-    static void ExitPCLib(int nExitCode);
-	static void CleanPCLib();
 	static void PCInitRecMutex(PC_REC_MUTEX_HANDLE* mutex);
 	static void PCSSL_ThreadID_CallBack(CRYPTO_THREADID* id);
 	static void PCSSL_Lock_CallBack(int mode, int type, const char *file, int line);
