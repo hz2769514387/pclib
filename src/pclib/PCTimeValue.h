@@ -32,9 +32,13 @@ public:
 	CPCTimeValue& operator= (timeval tvTime)			{ m_TimeMsValue = tvTime.tv_sec * 1000 + (tvTime.tv_usec / 1000); return *this; }
 	CPCTimeValue& operator= (const char * pszTimeStamp);
 
-	//重载== !=操作符，判断两个CPCTimeValue是否相等
-	bool operator==(const CPCTimeValue& rhs) const		{return (m_TimeMsValue == rhs.m_TimeMsValue);}
-	bool operator!=(const CPCTimeValue& rhs) const		{return (m_TimeMsValue != rhs.m_TimeMsValue);}
+	//重载比较操作符，判断两个CPCTimeValue的大小
+	bool operator==(const CPCTimeValue& rhs) const		{ return (m_TimeMsValue == rhs.m_TimeMsValue); }
+	bool operator!=(const CPCTimeValue& rhs) const		{ return (m_TimeMsValue != rhs.m_TimeMsValue); }
+	bool operator>(const CPCTimeValue& rhs) const		{ return (m_TimeMsValue > rhs.m_TimeMsValue); }
+	bool operator<(const CPCTimeValue& rhs) const		{ return (m_TimeMsValue < rhs.m_TimeMsValue); }
+	bool operator>=(const CPCTimeValue& rhs) const		{ return (m_TimeMsValue >= rhs.m_TimeMsValue); }
+	bool operator<=(const CPCTimeValue& rhs) const		{ return (m_TimeMsValue <= rhs.m_TimeMsValue); }
 
 	//重载-(时间)操作符，表示两个时间之间的间隔（毫秒）
 	long long operator-(const CPCTimeValue& rhs) const	{return m_TimeMsValue - rhs.m_TimeMsValue;}
@@ -60,10 +64,10 @@ public:
     bool IsTimeOut(long long nTimeOutMs) const           {return ((nTimeOutMs < 0) ? false : (CPCTimeValue::Now().GetValue() - m_TimeMsValue > nTimeOutMs)); }
 
 	//返回当前系统的日历时间（从1970年1月1日以来的毫秒数）.
-    static const CPCTimeValue Now();
+    static CPCTimeValue Now();
 
 	//返回系统启动到现在的毫秒数即TickCount.
-    static const CPCTimeValue TickCount();
+    static CPCTimeValue TickCount();
 
 	//从CPCTimeValue类中取出日历时间
 	long long GetValue(void) const		{ return m_TimeMsValue; }

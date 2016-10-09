@@ -14,7 +14,7 @@ PCLIB_NAMESPACE_BEG
 #define PC_BUFFER_INIT_SIZE  (4096)
 
 /**
-*@brief		用户层缓冲区
+*@brief		高性能的用户层缓冲区
 */
 class CPCBuffer : CPCNoCopyable
 {
@@ -42,7 +42,7 @@ public:
 		Append(pstr);
 	}
 
-    //将buffer重置成指定长度
+    //将buffer重置成指定长度。如果指定长度长于当前数据长度则多余的部分填充未定义的数据；如果短于则截断。
 	void Reset(size_t nResetSize = 0)
 	{
         if(nResetSize > m_Size)

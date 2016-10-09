@@ -22,7 +22,7 @@ CPCLog::CPCLog()
 {
 	//日志默认属性
 	strcpy(m_pszLogPath, "./logs/");
-	m_pFmtBuff = new char[PC_LOG_LINE_MAX_LEN];
+	m_pFmtBuff = new (std::nothrow) char[PC_LOG_LINE_MAX_LEN];
 	PC_ASSERT(m_pFmtBuff != NULL, "m_pFmtBuff分配内存失败！");
 
 	memset(m_pFmtBuff, 0, PC_LOG_LINE_MAX_LEN);
@@ -41,13 +41,6 @@ CPCLog::~CPCLog()
 		delete m_pFmtBuff;
 		m_pFmtBuff = NULL;
 	}
-}
-
-//单例函数不允许内联，实现体也不可以放在头文件中
-CPCLog* CPCLog::GetRoot()
-{
-	static CPCLog m_Log;
-	return &m_Log;
 }
 
 int CPCLog::SetLogAttr(int nLevel, int nGenMode, bool bStdout, const char * pszLogPath)
@@ -130,7 +123,14 @@ int CPCLog::WriteLogFmt(const char* pFuncName, unsigned long ulLine, int nLevel,
 	va_end(ap);
 
 	unsigned long ulThradID = PCGetCurrentThreadID();
-	fprintf(m_pLogFile, "%s %s %lu %s:%lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
+	if (pFuncName == NULL || pFuncName[0] == 0 || ulLine == 0)
+	{
+		fprintf(m_pLogFile, "%s %s %lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID,  m_pFmtBuff);
+	}
+	else
+	{
+		fprintf(m_pLogFile, "%s %s %lu %s:%lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
+	}
 	if(PC_LOG_WRITE_ALWAYS)
 	{
 		fflush(m_pLogFile);
@@ -139,7 +139,14 @@ int CPCLog::WriteLogFmt(const char* pFuncName, unsigned long ulLine, int nLevel,
 	//写到控制台
 	if (m_bStdout)
 	{
-		printf("%s %s %lu %s:%lu %s\r\n\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
+		if (pFuncName == NULL || pFuncName[0] == 0 || ulLine == 0)
+		{
+			printf("%s %s %lu %s\r\n\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, m_pFmtBuff);
+		}
+		else
+		{
+			printf("%s %s %lu %s:%lu %s\r\n\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
+		}
 	}
 	return PC_RESULT_SUCCESS;
 }
@@ -178,7 +185,14 @@ int CPCLog::WriteLogBytes(const char* pFuncName, unsigned long ulLine, int nLeve
 		return nRet;
 	}
 	unsigned long ulThradID = PCGetCurrentThreadID();
-	fprintf(m_pLogFile, "%s %s %lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
+	if (pFuncName == NULL || pFuncName[0] == 0 || ulLine == 0)
+	{
+		fprintf(m_pLogFile, "%s %s %lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pszTips, m_pFmtBuff);
+	}
+	else
+	{
+		fprintf(m_pLogFile, "%s %s %lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
+	}
 	if (PC_LOG_WRITE_ALWAYS)
 	{
 		fflush(m_pLogFile);
@@ -187,7 +201,14 @@ int CPCLog::WriteLogBytes(const char* pFuncName, unsigned long ulLine, int nLeve
 	//写到控制台
 	if (m_bStdout)
 	{
-		printf("%s %s %lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
+		if (pFuncName == NULL || pFuncName[0] == 0 || ulLine == 0)
+		{
+			printf("%s %s %lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pszTips, m_pFmtBuff);
+		}
+		else
+		{
+			printf("%s %s %lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
+		}
 	}
 	return PC_RESULT_SUCCESS;
 }

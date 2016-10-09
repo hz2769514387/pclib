@@ -25,17 +25,17 @@ PCLIB_NAMESPACE_BEG
 *@param		nAlgo		[IN]	算法，见文件头校验算法宏定义
 *@param		pszSrc		[IN]	输入的数据
 *@param		nSrcLen		[IN]	输入的数据长度
-*@param		pszMd		[OUT]	输出的数据缓冲区，必须保证足够
+*@param		pszMd		[OUT]	输出的数据缓冲区，外部必须保证分配的空间足够
 *@return	成功时返回输出数据的长度；失败时返回<0的错误码，见PC_Lib.h
 */
-int  PCGetMd(int nAlgo, const unsigned char *pszSrc, unsigned int nSrcLen, unsigned char *pszMd);
+int  PCGetMd(int nAlgo, const unsigned char *pszSrc, size_t nSrcLen, unsigned char *pszMd);
 
 /**
 *@brief		计算文件的校验值，输出值为原始值。
 *@param		nAlgo		[IN]	算法，见文件头校验算法宏定义
 *@param		pszSrc		[IN]	输入的数据
 *@param		nSrcLen		[IN]	输入的数据长度
-*@param		pszMd		[OUT]	输出的数据缓冲区，必须保证足够
+*@param		pszMd		[OUT]	输出的数据缓冲区，外部必须保证分配的空间足够
 *@return	成功时返回输出数据的长度；失败时返回<0的错误码，见PC_Lib.h
 */
 int  PCGetFileMd(int nAlgo, const char *pszPath, unsigned char *pszMd);
@@ -50,7 +50,7 @@ int  PCGetFileMd(int nAlgo, const char *pszPath, unsigned char *pszMd);
 *@param		pszHMac		[OUT]	输出的数据缓冲区，必须大于或等于16字节
 *@return	成功时返回输出数据的长度；失败时返回<0的错误码，见PC_Lib.h
 */
-int  PCGetHMac(int nAlgo, const unsigned char *pszSrc, unsigned int nSrcLen, const unsigned char *pszKey, unsigned int nKeyLen, unsigned char *pszHMac);
+int  PCGetHMac(int nAlgo, const unsigned char *pszSrc, size_t nSrcLen, const unsigned char *pszKey, unsigned int nKeyLen, unsigned char *pszHMac);
 
 /**
 *@brief		计算字节数组的CRC32或Adler-32校验和。Adler-32比CRC更快，和CRC一样可靠。输入值为原始值。

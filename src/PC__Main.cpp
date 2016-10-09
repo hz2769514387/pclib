@@ -9,7 +9,15 @@
 #include "pclib/PCBlockingQueue.h"
 #include "pclib/PCBuffer.h"
 #include "pclib/PCDisruptor.h"
-
+#include "pclib/PCUtilCheckSum.h"
+#include "pclib/PCUtilFirewall_Win.h"
+#include "pclib/PCUtilMisc_Linux.h"
+#include "pclib/PCUtilMisc_Win.h"
+#include "pclib/PCUtilNetwork.h"
+#include "pclib/PCUtilString.h"
+#include "pclib/PCUtilSymEncrypt.h"
+#include "pclib/PCUtilSystem.h"
+#include "pclib/PCRandom.h"
 
 using namespace std;
 using namespace pclib;
@@ -46,25 +54,38 @@ protected:
 
 
 
-
-
-
 int main(int argc, char* argv[])
 {
+	CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelDebug, CPCLog::eGenModeDay, true, "d:");
+
+	PC_SOCKET sfd = PCCreateTcpSocket("ftpx", false);
+	struct sockaddr_in addr4;
+	int res1 = PCDnsParseAddrIPv4("www.baidu.com", "12", &addr4);
+
+
 	std::vector<wchar_t> pszDestx;
-	int xkx = PCMbsToUnicode("zhong国", pszDestx,false);
-	
+    int xkx = PCMbsToUnicode("zhong", pszDestx,false);
+    
 
 	std::vector<char> pszDestc;
-	xkx = PCUnicodeToMbs(L"zhong国1", pszDestc,true);
+    xkx = PCUnicodeToMbs(L"zhong", pszDestc,true);
 	PC_INFO_LOG("%s", &pszDestc[0]);
-	xkx = PCUnicodeToMbs(L"zhong国2", pszDestc, false);
+    xkx = PCUnicodeToMbs(L"zhong", pszDestc, false);
 	PC_INFO_LOG("%s", &pszDestc[0]);
-
-
-	return 0;
 
 	//TIME
+	CPCTimeValue tvk = CPCTimeValue::Now();
+	PCSleepMsec(10);
+	CPCTimeValue tvb = CPCTimeValue::Now();
+	if (tvk > tvb)
+	{
+		PC_INFO_LOG("%s", "见鬼了");
+	}
+	else
+	{
+		PC_INFO_LOG("%s", "正常的");
+	}
+
 	char pszTimeS[50];
 	CPCTimeValue tv = CPCTimeValue::Now();
 	tv.Format("Sleep Start: %Y-%m-%d %H:%M:%S @@@", pszTimeS, 50);
@@ -127,9 +148,9 @@ int main(int argc, char* argv[])
 	unsigned char pszRand[10];
 	for (int i = 0; i < 1; i++)
 	{
-		PCGetRandomBytes(pszRand, 10);
+		CPCRandMT19937::GetRoot()->RandomBytes(pszRand, 10);
 	
-		PC_INFO_LOG("随机数：%u", PCGetRandomRange(3, 20));
+		PC_INFO_LOG("随机数：%u", CPCRandMT19937::GetRoot()->RandomRange(3, 20));
 		CPCLog::GetRoot()->WriteLogBytes(__FUNCTION__, __LINE__, CPCLog::eLevelWarn, "随机数：", pszRand, 10);
 	}
 	
@@ -138,9 +159,6 @@ int main(int argc, char* argv[])
 	unsigned char szout[1111] = {0};
 	PCDispHexStr2Bytes("40313931202030313536353139363133313238313237333630352030313032303530303138363737373734323538202020202020202020313132332020203132332020202020202020202020202020202020202020202020202020202020303030303131303030303031",
 		szout, 1111);
-
-	std::vector<std::string> vecStrList;
-	int reta = PCCmdArgsParse(argc, argv, vecStrList);
 
 	unsigned char pszDestBufbb[1111];
 	int fff = PCBase64Encode((unsigned char*)"i\xb7\x1d\xfb\xef\xff", 6, pszDestBufbb, 1111, false, true);
@@ -155,11 +173,10 @@ int main(int argc, char* argv[])
 	const  char *pszSrc4 = "12345678123456781";
 	const  char *pszSrc5 = "123456781234567";
 	//8b 9d c9 c5 7a 7e c9 27
-	int LL = PCSymEncypt(PC_3DES_ECB, (unsigned char*)pszSrc1, strlen(pszSrc1), (unsigned char *)"12345678", 8, pszDest3, sizeof(pszDest3), "pboc", NULL);
+	int LL = PCSymEncypt(PC_3DES_ECB, (unsigned char*)pszSrc1, (unsigned int)strlen(pszSrc1), (unsigned char *)"12345678", 8, pszDest3, sizeof(pszDest3), "pboc", NULL);
 	unsigned char pszDest13[1001] = { 0 };
 	//
 	LL = PCSymDecypt(PC_AES_ECB, pszDest3, LL, (unsigned char *)"1234567812345678", 16, pszDest13, sizeof(pszDest13), "pboc", NULL);
-
 
 
 	//////////////////////////
@@ -184,10 +201,10 @@ int main(int argc, char* argv[])
 
 	unsigned char pszDest[122] = { 0 };
 	const char * psrc = "你好世界。         <p>尊敬的用户，您好！</p><p>抱歉，服务器出小差了，请稍后再试。< / p>";
-	unsigned int psrcLen = strlen(psrc);
+	size_t psrcLen = strlen(psrc);
 
 	const char * pkey = "你fidsjfjedopisfejoifoewf898432iojrferskofjkdlsjfkldsjfklds好世界。         <p>尊敬的用户，您好！</p><p>抱歉，服务器出小差了，请稍后再试。< / p>";
-	unsigned int pkeyLen = strlen(pkey);
+	unsigned int pkeyLen = (unsigned int)strlen(pkey);
 	/*a0 f1 a0 14 73 56 12 c6   91 cc 59 ae cb 7b dc db*/
 	int NRET1 = PCGetMd(PC_ALGO_MD5,(unsigned char*)psrc, psrcLen, pszDest);
 
@@ -215,7 +232,7 @@ int main(int argc, char* argv[])
 	
 	const char * in = "你好世界。         <p>尊敬的用户，您好！</p><p>抱歉，服务器出小差了，请稍后再试。< / p>";
 	unsigned char pszDestBuf[122] = { 0 };
-	int ret = PCBytesGZipCompress((unsigned char*)in, strlen(in), pszDestBuf, 122);
+	int ret = PCBytesGZipCompress((unsigned char*)in, (unsigned int)strlen(in), pszDestBuf, 122);
 	PC_INFO_LOG( "压缩后：%d字节", ret);
 	CPCLog::GetRoot()->WriteLogBytes(__FUNCTION__, __LINE__, CPCLog::eLevelTrace, "数据：", pszDestBuf, ret);
 

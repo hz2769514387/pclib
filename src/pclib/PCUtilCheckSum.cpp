@@ -37,7 +37,7 @@ const EVP_MD *  PCGetCheckSumFuncAddr(int nAlgo)
 	}
 }
 
-int  PCGetMd(int nAlgo, const unsigned char *pszSrc, unsigned int nSrcLen, unsigned char *pszMd)
+int  PCGetMd(int nAlgo, const unsigned char *pszSrc, size_t nSrcLen, unsigned char *pszMd)
 {
 	if (pszSrc == NULL || nSrcLen == 0 || pszMd == NULL)
 	{
@@ -137,7 +137,7 @@ int  PCGetFileMd(int nAlgo, const char *pszPath, unsigned char *pszMd)
 	return nMdLen;
 }
 
-int  PCGetHMac(int nAlgo, const unsigned char *pszSrc, unsigned int nSrcLen, const unsigned char *pszKey, unsigned int nKeyLen, unsigned char *pszHMac)
+int  PCGetHMac(int nAlgo, const unsigned char *pszSrc, size_t nSrcLen, const unsigned char *pszKey, unsigned int nKeyLen, unsigned char *pszHMac)
 {
 	if (pszSrc == NULL || nSrcLen == 0 || pszKey == NULL || nKeyLen == 0 || pszHMac == NULL)
 	{

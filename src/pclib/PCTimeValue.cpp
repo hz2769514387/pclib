@@ -85,7 +85,7 @@ int CPCTimeValue::Format(const char * pszFormatStr, char *pszResultBuf, unsigned
 	return PC_RESULT_SUCCESS;
 }
 
-const CPCTimeValue CPCTimeValue::Now()
+CPCTimeValue CPCTimeValue::Now()
 {
 #if defined (_WIN32)
 	struct timeb tbTime;
@@ -100,7 +100,7 @@ const CPCTimeValue CPCTimeValue::Now()
 #endif
 }
 
-const CPCTimeValue CPCTimeValue::TickCount()
+CPCTimeValue CPCTimeValue::TickCount()
 {
 #if defined(_WIN32)
 	static LARGE_INTEGER TicksPerSecond = { 0 };

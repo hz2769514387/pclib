@@ -3,11 +3,179 @@
 #include "PCUtilSystem.h"
 #include "PCUtilString.h"
 #include "PCMemory.h" 
+#include "PCRandom.h"
 #include "PCUtilSymEncrypt.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
 //////////////////////////////////////////////////////////////////////////
+
+
+/**
+*@brief		根据填充模式获取最后一个分组的数据和原始数据分组后的大小。
+*@param		pszPaddingMode	[IN]	填充模式。详细见PCSymEncypt函数注释。
+*@param		pszSrc			[IN]	输入的数据
+*@param		nSrcLen			[IN]	输入的数据长度
+*@param		nBlockLen		[IN]	分组的长度，如DES/3DES为8字节，AES为16字节
+*@param		pszDest			[OUT]	最后一个分组的数据缓冲区，缓冲区长度必须大/等于nBlockLen，返回后的数据长度为nBlockLen字节。
+*@return	成功时返回原始数据分组后的大小。失败时返回<0的错误码，见PC_Lib.h
+*/
+int  PCGetPaddingLastBlock(const char * pszPaddingMode, const unsigned char *pszSrc, unsigned int nSrcLen, unsigned int nBlockLen, unsigned char *pszDest)
+{
+	if (pszSrc == NULL || nSrcLen == 0 || nBlockLen == 0 || nBlockLen  > 0xFF || pszDest == NULL)
+	{
+		PC_ERROR_LOG("params error! some value is NULL");
+		return PC_RESULT_PARAM;
+	}
+
+	//从数据头开始的原始数据分组后的长度
+	unsigned int nBlockedSrcLen = 0;
+	if (0 == PCStrCaseCmp("PKCS7", pszPaddingMode))
+	{
+		unsigned int nLeft = nSrcLen % nBlockLen;
+		nBlockedSrcLen = nSrcLen - nLeft;
+		memset(pszDest, (unsigned char)(nBlockLen - nLeft), nBlockLen);
+		if (nLeft != 0)
+		{
+			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeft);
+		}
+	}
+	else if (0 == PCStrCaseCmp("ANSIX923", pszPaddingMode))
+	{
+		unsigned int nLeft = nSrcLen % nBlockLen;
+		nBlockedSrcLen = nSrcLen - nLeft;
+		memset(pszDest, 0, nBlockLen);
+		if (nLeft != 0)
+		{
+			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeft);
+		}
+		pszDest[nBlockLen - 1] = (unsigned char)(nBlockLen - nLeft);
+	}
+	else if (0 == PCStrCaseCmp("ISO10126", pszPaddingMode))
+	{
+		unsigned int nLeft = nSrcLen % nBlockLen;
+		nBlockedSrcLen = nSrcLen - nLeft;
+		CPCRandMT19937::GetRoot()->RandomBytes(pszDest, nBlockLen);
+		if (nLeft != 0)
+		{
+			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeft);
+		}
+		pszDest[nBlockLen - 1] = (unsigned char)(nBlockLen - nLeft);
+	}
+	else if (0 == PCStrCaseCmp("PBOC", pszPaddingMode))
+	{
+		unsigned int nLeftPBOC = (nSrcLen + 1) % nBlockLen;
+		if (nLeftPBOC != 0)
+		{
+			nBlockedSrcLen = nSrcLen - (nLeftPBOC - 1);
+			memset(pszDest, 0, nBlockLen);
+			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeftPBOC - 1);
+			pszDest[nLeftPBOC - 1] = 0x80;
+		}
+		else
+		{
+			nBlockedSrcLen = nSrcLen - (nBlockLen - 1);
+			memcpy(pszDest, pszSrc + nBlockedSrcLen, nBlockLen - 1);
+			pszDest[nBlockLen - 1] = 0x80;
+		}
+	}
+	else
+	{
+		//指定字节填充
+		if (strlen(pszPaddingMode) != 2)
+		{
+			PC_ERROR_LOG("params error! pszPaddingMode = %s", pszPaddingMode);
+			return PC_RESULT_PARAM;
+		}
+		unsigned char pszDestPaddingByte[2];
+		if (0 > PCDispHexStr2Bytes(pszPaddingMode, pszDestPaddingByte, 2))
+		{
+			return PC_RESULT_PARAM;
+		}
+
+		unsigned int nLeft = nSrcLen % nBlockLen;
+		if (nLeft != 0)
+		{
+			nBlockedSrcLen = nSrcLen - nLeft;
+			memset(pszDest, pszDestPaddingByte[0], nBlockLen);
+			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeft);
+		}
+		else
+		{
+			nBlockedSrcLen = nSrcLen - nBlockLen;
+			memcpy(pszDest, pszSrc + nBlockedSrcLen, nBlockLen);
+		}
+	}
+	return nBlockedSrcLen;
+}
+
+/**
+*@brief		根据填充模式获取最后一个分组的数据和原始数据分组后的大小。
+*@param		pszPaddingMode	[IN]	填充模式。当pad_mode=""或NULL时，认为是指定字节0x00填充。填充模式见PCGetPaddingLastBlock函数。
+*@param		pszSrc			[IN]	要解除填充的数据
+*@param		nSrcLen			[IN]	要解除填充的数据长度
+*@param		nBlockLen		[IN]	分组的长度，如DES/3DES为8字节，AES为16字节
+*@return	成功时解除填充后的数据长度。指定字节填充不能被去除但是仍然会成功。失败时返回<0的错误码，见PC_Lib.h
+*/
+int  PCRemovePadding(const char * pszPaddingMode, const unsigned char *pszSrc, unsigned int nSrcLen, unsigned int nBlockLen)
+{
+	if (pszSrc == NULL || nSrcLen == 0 || nBlockLen == 0 || nBlockLen  > 0xFF)
+	{
+		PC_ERROR_LOG("params error! some value is NULL");
+		return PC_RESULT_PARAM;
+	}
+
+	//解除填充后的数据长度
+	unsigned int nSrcRealDataLen = 0;
+	if ((0 == PCStrCaseCmp("PKCS7", pszPaddingMode)) ||
+		(0 == PCStrCaseCmp("ANSIX923", pszPaddingMode)) ||
+		(0 == PCStrCaseCmp("ISO10126", pszPaddingMode)))
+	{
+		unsigned int nPaddingLen = pszSrc[nSrcLen - 1];
+		if (nPaddingLen > nBlockLen || nPaddingLen > nSrcLen)
+		{
+			PC_ERROR_LOG("format error! nPaddingLen (%u) > nBlockLen(%u) or nSrcLen(%u)", nPaddingLen, nBlockLen, nSrcLen);
+			return PC_RESULT_FORMATERROR;
+		}
+		nSrcRealDataLen = nSrcLen - nPaddingLen;
+	}
+	else if (0 == PCStrCaseCmp("PBOC", pszPaddingMode))
+	{
+		//从后往前查找0x80
+		int nPos80 = -1;
+		for (int i = nSrcLen - 1; i >= 0; i--)
+		{
+			if (pszSrc[i] == 0x80)
+			{
+				nPos80 = i;
+				break;
+			}
+		}
+		if (-1 == nPos80)
+		{
+			PC_ERROR_LOG("format error! NOT FIND 0x80");
+			return PC_RESULT_FORMATERROR;
+		}
+		nSrcRealDataLen = nPos80;
+	}
+	else
+	{
+		//指定字节填充
+		if (strlen(pszPaddingMode) != 2)
+		{
+			PC_ERROR_LOG("params error! pszPaddingMode = %s", pszPaddingMode);
+			return PC_RESULT_PARAM;
+		}
+		unsigned char pszDestPaddingByte[2];
+		if (0 > PCDispHexStr2Bytes(pszPaddingMode, pszDestPaddingByte, 2))
+		{
+			return PC_RESULT_PARAM;
+		}
+		//指定字节填充无法判断，不移除
+		nSrcRealDataLen = nSrcLen;
+	}
+	return nSrcRealDataLen;
+}
 
 
 /**
@@ -425,156 +593,6 @@ int  PCSymDecypt(int nAlgo, const unsigned char *pszSrc, unsigned int nSrcLen, c
 }
 
 
-
-
-int  PCGetPaddingLastBlock(const char * pszPaddingMode, const unsigned char *pszSrc, unsigned int nSrcLen, unsigned int nBlockLen, unsigned char *pszDest)
-{
-	if (pszSrc == NULL || nSrcLen == 0 || nBlockLen == 0 || nBlockLen  > 0xFF || pszDest == NULL)
-	{
-		PC_ERROR_LOG("params error! some value is NULL");
-		return PC_RESULT_PARAM;
-	}
-
-	//从数据头开始的原始数据分组后的长度
-	unsigned int nBlockedSrcLen = 0;			
-	if (0 == PCStrCaseCmp("PKCS7", pszPaddingMode))
-	{
-		unsigned int nLeft = nSrcLen % nBlockLen;	
-		nBlockedSrcLen = nSrcLen - nLeft;
-		memset(pszDest, (unsigned char)(nBlockLen - nLeft), nBlockLen);
-		if (nLeft != 0)
-		{
-			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeft);
-		}
-	}
-	else if (0 == PCStrCaseCmp("ANSIX923", pszPaddingMode))
-	{
-		unsigned int nLeft = nSrcLen % nBlockLen;	
-		nBlockedSrcLen = nSrcLen - nLeft;
-		memset(pszDest, 0, nBlockLen);
-		if (nLeft != 0)
-		{
-			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeft);
-		}
-		pszDest[nBlockLen - 1] = (unsigned char)(nBlockLen - nLeft);
-	}
-	else if (0 == PCStrCaseCmp("ISO10126", pszPaddingMode))
-	{
-		unsigned int nLeft = nSrcLen % nBlockLen;	
-		nBlockedSrcLen = nSrcLen - nLeft;
-		PCGetRandomBytes(pszDest, nBlockLen);
-		if (nLeft != 0)
-		{
-			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeft);
-		}
-		pszDest[nBlockLen - 1] = (unsigned char)(nBlockLen - nLeft);
-	}
-	else if (0 == PCStrCaseCmp("PBOC", pszPaddingMode))
-	{
-		unsigned int nLeftPBOC = (nSrcLen + 1) % nBlockLen;	
-		if (nLeftPBOC != 0)
-		{
-			nBlockedSrcLen = nSrcLen - (nLeftPBOC - 1);
-			memset(pszDest, 0, nBlockLen);
-			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeftPBOC - 1);
-			pszDest[nLeftPBOC - 1] = 0x80;
-		}
-		else
-		{
-			nBlockedSrcLen = nSrcLen - (nBlockLen - 1);
-			memcpy(pszDest, pszSrc + nBlockedSrcLen, nBlockLen - 1);
-			pszDest[nBlockLen - 1] = 0x80;
-		}
-	}
-	else
-	{
-		//指定字节填充
-		if (strlen(pszPaddingMode) != 2 )
-		{
-			PC_ERROR_LOG("params error! pszPaddingMode = %s", pszPaddingMode);
-			return PC_RESULT_PARAM;
-		}
-		unsigned char pszDestPaddingByte[2] ;
-		if (0 > PCDispHexStr2Bytes(pszPaddingMode, pszDestPaddingByte, 2))
-		{
-			return PC_RESULT_PARAM;
-		}
-
-		unsigned int nLeft = nSrcLen % nBlockLen;
-		if (nLeft != 0)
-		{
-			nBlockedSrcLen = nSrcLen - nLeft;
-			memset(pszDest, pszDestPaddingByte[0], nBlockLen);
-			memcpy(pszDest, pszSrc + nBlockedSrcLen, nLeft);
-		}
-		else
-		{
-			nBlockedSrcLen = nSrcLen - nBlockLen;
-			memcpy(pszDest, pszSrc + nBlockedSrcLen, nBlockLen);
-		}
-	}
-	return nBlockedSrcLen;
-}
-
-int  PCRemovePadding(const char * pszPaddingMode, const unsigned char *pszSrc, unsigned int nSrcLen, unsigned int nBlockLen)
-{
-	if (pszSrc == NULL || nSrcLen == 0 || nBlockLen == 0 || nBlockLen  > 0xFF)
-	{
-		PC_ERROR_LOG("params error! some value is NULL");
-		return PC_RESULT_PARAM;
-	}
-
-	//解除填充后的数据长度
-	unsigned int nSrcRealDataLen = 0;
-	if(  (0 == PCStrCaseCmp("PKCS7", pszPaddingMode))		|| 
-		 (0 == PCStrCaseCmp("ANSIX923", pszPaddingMode))	|| 
-		 (0 == PCStrCaseCmp("ISO10126", pszPaddingMode))	)
-	{
-		unsigned int nPaddingLen = pszSrc[nSrcLen-1];
-		if (nPaddingLen > nBlockLen || nPaddingLen > nSrcLen)
-		{
-			PC_ERROR_LOG("format error! nPaddingLen (%u) > nBlockLen(%u) or nSrcLen(%u)", nPaddingLen, nBlockLen,nSrcLen);
-			return PC_RESULT_FORMATERROR;
-		}
-		nSrcRealDataLen = nSrcLen - nPaddingLen;
-	}
-	else if (0 == PCStrCaseCmp("PBOC", pszPaddingMode))
-	{
-		//从后往前查找0x80
-		int nPos80 = -1;
-		for (int i = nSrcLen - 1; i >= 0; i--)
-		{
-			if (pszSrc[i] == 0x80)
-			{
-				nPos80 = i;
-				break;
-			}
-		}
-		if (-1 == nPos80)
-		{
-			PC_ERROR_LOG("format error! NOT FIND 0x80");
-			return PC_RESULT_FORMATERROR;
-		}
-		nSrcRealDataLen = nPos80;
-	}
-	else
-	{
-		//指定字节填充
-		if (strlen(pszPaddingMode) != 2)
-		{
-			PC_ERROR_LOG("params error! pszPaddingMode = %s", pszPaddingMode);
-			return PC_RESULT_PARAM;
-		}
-		unsigned char pszDestPaddingByte[2];
-		if (0 > PCDispHexStr2Bytes(pszPaddingMode, pszDestPaddingByte, 2))
-		{
-			return PC_RESULT_PARAM;
-		}
-		//指定字节填充无法判断，不移除
-		nSrcRealDataLen = nSrcLen;
-	}
-	return nSrcRealDataLen;
-}
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_END

@@ -4,33 +4,31 @@
 #pragma once
 #endif // _MSC_VER > 1000
 #include "PC_Lib.h"
+#include "PCLog.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
 //////////////////////////////////////////////////////////////////////////
 
-//定义静态常量属性
-#define PC_STATIC_PROPERTY(T, name, ...)	static const T name = (__VA_ARGS__)
-
 /**
-*@brief		高性能随机数类(使用struct为了兼容C)，使用Mersenne Twister 19937
+*@brief		高性能随机数类，使用Mersenne Twister 19937
 */
-struct PCStruMT19937
+class CPCRandMT19937 :CPCNoCopyable
 {
 public:
-	//初始化随机数发生器
-	void srand(unsigned int sd)
+	virtual ~CPCRandMT19937(){}
+	static CPCRandMT19937* GetRoot()
 	{
-		unsigned int prev = m_MTState[0] = sd;
-		for (int i = 1; i < STATE_SIZE; ++i)
-		{
-			prev = m_MTState[i] = ((i + INIT_MULTIPLIER * (prev ^ (prev >> 30))) & F_MASK);
-		}
-		m_Index = 0;
+		static CPCRandMT19937 m_RandomInstance;
+		return &m_RandomInstance;
 	}
 
-	//产生随机数
-	unsigned int rand(void)
+	/**
+	*@brief		获取一个随机的无符号正整数，包括0
+	*@param
+	*@return	随机的正整数
+	*/
+	unsigned int RandUInt(void)
 	{
 		if (m_Index >= STATE_SIZE)
 		{
@@ -49,8 +47,56 @@ public:
 		if (m_Index >= STATE_SIZE) m_Index = 0;
 		return y;
 	}
+
+	/**
+	*@brief		从一个正整数闭区间内随机选取一个正整数，如[3,7]中选出6
+	*@param		nMin		[IN]	选取的限制最小值，包括自身
+	*@param		nMax		[IN]	选取的限制最大值，包括自身
+	*@return	随机选出的正整数.如果nMin>=nMax，则返回nMin.
+	*/
+	unsigned int  RandomRange(unsigned int nMin, unsigned int nMax)
+	{
+		if (nMin >= nMax)
+		{
+			return nMin;
+		}
+		return (RandUInt() % (nMax - nMin + 1) + nMin);
+	}
+
+	/**
+	*@brief		获取一个随机的字节数组
+	*@param		pszDest		[OUT]	字节数组缓冲区
+	*@param		nDestBufLen	[IN]	需要产生的字节数数量
+	*@return	错误码，见PC_Lib.h
+	*/
+	int  RandomBytes(unsigned char *pszDest, unsigned int nDestLen)
+	{
+		if (pszDest == NULL)
+		{
+			PC_ERROR_LOG("params err! pszDest=NULL");
+			return PC_RESULT_PARAM;
+		}
+
+		for (unsigned int i = 0; i < nDestLen; i++)
+		{
+			pszDest[i] = static_cast<unsigned char>(RandUInt() % (0xFF + 1));
+		}
+		return PC_RESULT_SUCCESS;
+	}
+
+	//初始化随机数发生器，在pclib类里面统一初始化
+	void SRand(unsigned int sd)
+	{
+		unsigned int prev = m_MTState[0] = sd;
+		for (int i = 1; i < STATE_SIZE; ++i)
+		{
+			prev = m_MTState[i] = ((i + INIT_MULTIPLIER * (prev ^ (prev >> 30))) & F_MASK);
+		}
+		m_Index = 0;
+	}
 	
 private:
+	CPCRandMT19937(){}
 	PC_STATIC_PROPERTY(unsigned int, MAX, (unsigned int)~0);
 
     PC_STATIC_PROPERTY(int, WORD_SIZE, sizeof(unsigned int) );                  // WORD的比特定义

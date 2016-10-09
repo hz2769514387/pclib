@@ -2,6 +2,7 @@
 #include "PCUtilMisc_Linux.h"
 #include "PCTimeValue.h"
 #include "PCUtilString.h"
+#include "PCRandom.h"
 #include "PCLog.h"
 
 
@@ -173,27 +174,6 @@ int PCStrSplit(char *pszSrc, const char *pszDelim, std::vector<char*> &vecStrLis
 	return PC_RESULT_SUCCESS;
 }
 
-int  PCCmdArgsParse(int argc, const char* const argv[], std::vector<std::string>& vecStrList)
-{
-	if (argc < 1 || argv[0] == 0)
-	{
-		PC_ERROR_LOG("param error£¡argc=%d", argc);
-		return PC_RESULT_PARAM;
-	}
-
-	for (int i = 0; i < argc; i++)
-	{
-		if (argv[i] == NULL || argv[i][0] == 0)
-		{
-			PC_ERROR_LOG("param error£¡argc=%d, argv[%d] is empty", argc, i);
-			return PC_RESULT_PARAM;
-		}
-		std::string strParam = argv[i];
-		vecStrList.push_back(strParam);
-	}
-	return PC_RESULT_SUCCESS;
-}
-
 int  PCUrlEncode(const char *pszSrc, char *pszDest, unsigned int nDestBufLen, int nMode)
 {
 	//²ÎÊý¼ì²é
@@ -331,7 +311,7 @@ int PCGbkToUtf8(const char *pszSrc, char *pszDest, unsigned int  nDestBufLen)
 		PC_ERROR_LOG("MultiByteToWideChar nWcsLen = 0£¡");
 		return PC_RESULT_SYSERROR;
 	}
-	std::unique_ptr<wchar_t[]> upUnicodeData(new wchar_t[nWcsLen + 1]);
+	std::unique_ptr<wchar_t[]> upUnicodeData(new (std::nothrow) wchar_t[nWcsLen + 1]);
 	if (upUnicodeData.get() == NULL)
 	{
 		PC_ERROR_LOG("new wchar_t pData = NULL");
@@ -391,7 +371,7 @@ int PCUtf8ToGbk(const char *pszSrc, char *pszDest, unsigned int  nDestBufLen)
 		PC_ERROR_LOG("MultiByteToWideChar nWcsLen = 0£¡");
 		return PC_RESULT_SYSERROR;
 	}
-	std::unique_ptr<wchar_t[]> upUnicodeData(new wchar_t[nWcsLen + 1]);
+	std::unique_ptr<wchar_t[]> upUnicodeData(new (std::nothrow) wchar_t[nWcsLen + 1]);
 	if (upUnicodeData.get() == NULL)
 	{
 		PC_ERROR_LOG("new wchar_t pData = NULL£¡");
@@ -461,7 +441,7 @@ int  PCMbsToUnicode(const char *pszSrc, std::vector<wchar_t> &pszDest, bool bUtf
 	}
 	else
 	{
-		PC_ASSERT(setlocale(LC_CTYPE, "zh_CN.gbk"),"setlocale gbk fail");
+        PC_ASSERT(setlocale(LC_CTYPE, "zh_CN.gbk"),"setlocale gbk fail");
 	}
 
 	int nWcsLen = mbstowcs(NULL, pszSrc, 0) ;
@@ -783,42 +763,6 @@ int  PCBytesGZipDeCompress(const unsigned char *pszSrc, unsigned int nSrcLen, un
 	}
 
 	return d_stream.total_out;
-}
-
-unsigned int  PCGetRandomUInt(void)
-{
-	static struct PCStruMT19937 m_Mt19937;
-	static bool   bInited = false;
-	if (!bInited)
-	{
-		m_Mt19937.srand(static_cast<unsigned int>(CPCTimeValue::TickCount().GetValue()));
-		bInited = true;
-	}
-	return m_Mt19937.rand();
-}
-
-unsigned int  PCGetRandomRange(unsigned int nMin, unsigned int nMax)
-{
-	if (nMin >= nMax)
-	{
-		return nMin;
-	}	
-	return (PCGetRandomUInt() % (nMax - nMin + 1) +  nMin);
-}
-
-int  PCGetRandomBytes(unsigned char *pszDest, unsigned int nDestLen)
-{
-	if (pszDest == NULL )
-	{
-		PC_ERROR_LOG("params err! pszDest=NULL");
-		return PC_RESULT_PARAM;
-	}
-
-	for (unsigned int i = 0; i < nDestLen; i++)
-	{
-		pszDest[i] = static_cast<unsigned char>(PCGetRandomUInt() % (0xFF + 1));
-	}
-	return PC_RESULT_SUCCESS;
 }
 
 int  PCBase64Encode(const unsigned char *pszSrc, unsigned int nSrcLen, unsigned char *pszDestBuf, unsigned int nDestBufLen, bool bBlocked , bool bUrlSafe )

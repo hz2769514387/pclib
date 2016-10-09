@@ -50,15 +50,6 @@ char*  PCStrTrim(char *pszBuf, const char *pszWhat = " ", int nMode = 3);
 int  PCStrSplit(char *pszSrc, const char *pszDelim, std::vector<char*> &vecStrList);
 
 /**
-*@brief		将命令行参数解析到数组中（如果vecStrList已经有数据，则从最后添加，原来的数据不会被删除）
-*@param		argc		[IN]	命令行参数个数
-*@param		argv    	[IN]	命令行参数列表
-*@param		vecStrList	[OUT]	命令行字符串列表
-*@return	错误码，见PC_Lib.h
-*/
-int  PCCmdArgsParse(int argc, const char* const argv[], std::vector<std::string>& vecStrList);
-
-/**
 *@brief		将UTF8编码的字符串进行URL编码
 *			参照RFC3986规定，URL编码时默认使用UTF8模式
 *@param		pszSrc		[IN]	UTF8编码的待URL编码的原串
@@ -165,29 +156,6 @@ int  PCBytesGZipCompress(const unsigned char *pszSrc, unsigned int nSrcLen, unsi
 *@return	成功时返回>=0表示目标串pszDestBuf转换后实际数据的长度； <0时为错误码，见PC_Lib.h
 */
 int  PCBytesGZipDeCompress(const unsigned char *pszSrc, unsigned int nSrcLen, unsigned char *pszDestBuf, unsigned int nDestBufLen);
-
-/**
-*@brief		获取一个随机的无符号正整数，包括0
-*@param		
-*@return	随机的正整数
-*/
-unsigned int  PCGetRandomUInt(void);
-
-/**
-*@brief		从一个正整数闭区间内随机选取一个正整数，如[3,7]中选出6
-*@param		nMin		[IN]	选取的限制最小值，包括自身
-*@param		nMax		[IN]	选取的限制最大值，包括自身
-*@return	随机选出的正整数.如果nMin>=nMax，则返回nMin.
-*/
-unsigned int  PCGetRandomRange(unsigned int nMin, unsigned int nMax);
-
-/**
-*@brief		获取一个随机的字节数组
-*@param		pszDest		[OUT]	字节数组缓冲区
-*@param		nDestBufLen	[IN]	需要产生的字节数数量
-*@return	错误码，见PC_Lib.h
-*/
-int  PCGetRandomBytes(unsigned char *pszDest, unsigned int nDestLen);
 
 /**
 *@brief		将字节数组进行Base64编码

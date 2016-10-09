@@ -29,11 +29,20 @@
 //断言宏
 #define PC_ASSERT(_Expression,_logFmt,...)	if(!(_Expression)){printf(_logFmt, ## __VA_ARGS__);abort();} 
 
+//定义静态常量属性
+#define PC_STATIC_PROPERTY(T, name, ...)	static const T name = (__VA_ARGS__)
+
 //本地路径长度
 #define PC_MAX_PATH				(260)
 
 //URL路径长度
 #define PC_MAX_URL				(2084)
+
+//一行日志最大长度，4MB
+#define PC_LOG_LINE_MAX_LEN		(4*1024*1024)
+
+//日志是否立即写入
+#define PC_LOG_WRITE_ALWAYS		(false)
 
 
 /*----------------------------宏实现的部分跨平台函数---------------------------*/
@@ -135,18 +144,21 @@
 #endif
 
 //SOCKET网络
+#define		PC_SOCKET_TYPE			AF_INET				//协议，可指定以下类型：
+														//	AF_INET		仅支持IPv4，DNS解析速度快
+														//	AF_UNSPEC	兼容IPv4和IPv6，DNS解析速度慢
 #if defined (_WIN32)
 	#define PC_SOCKET				SOCKET				//套接字定义
 	#define PC_INVALID_SOCKET		INVALID_SOCKET		//非法套接字
 	#define PC_SOCKET_ERROR			SOCKET_ERROR		//SOCKET出错
 
-	#define PCCloseSocket			closesocket			//关闭套接字
+	#define PCCloseSocket(_S)		{closesocket(_S);_S=PC_INVALID_SOCKET;}	
 #else
 	#define PC_SOCKET				int
 	#define PC_INVALID_SOCKET		(-1)
 	#define PC_SOCKET_ERROR			(-1)
 
-	#define PCCloseSocket			close
+	#define PCCloseSocket(_S)		{close(_S);_S=PC_INVALID_SOCKET;}
 #endif
 
 /*----------------------------加载的系统宏定义、库和头文件---------------------*/
@@ -183,6 +195,7 @@
 	#include <rpcsal.h>
 	#include <netfw.h>
 	#include <WS2tcpip.h>
+	#include <MSWSock.h>
 	
 #else
 	#include <fcntl.h>
@@ -233,15 +246,14 @@
 
 
 //PCLIB库内部的C接口头文件
-#include "PCUtilCheckSum.h"
-#include "PCUtilFirewall_Win.h"
-#include "PCUtilMisc_Linux.h"
-#include "PCUtilMisc_Win.h"
-#include "PCUtilNetwork.h"
-#include "PCUtilString.h"
-#include "PCUtilSymEncrypt.h"
-#include "PCUtilSystem.h"
-#include "PCUtilRandom.h"
+//#include "PCUtilCheckSum.h"
+//#include "PCUtilFirewall_Win.h"
+//#include "PCUtilMisc_Linux.h"
+//#include "PCUtilMisc_Win.h"
+//#include "PCUtilNetwork.h"
+//#include "PCUtilString.h"
+//#include "PCUtilSymEncrypt.h"
+//#include "PCUtilSystem.h"
 
 
 //ZLIB
@@ -322,6 +334,11 @@ public:
 	static void PCInitRecMutex(PC_REC_MUTEX_HANDLE* mutex);
 	static void PCSSL_ThreadID_CallBack(CRYPTO_THREADID* id);
 	static void PCSSL_Lock_CallBack(int mode, int type, const char *file, int line);
+
+	//Windows下的ConnectEx函数需手动加载
+#if defined (_WIN32)
+	static LPFN_CONNECTEX		m_lpfnConnectEx;
+#endif
 };
 
 

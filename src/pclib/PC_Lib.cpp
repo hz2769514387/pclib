@@ -1,11 +1,17 @@
 #include "PC_Lib.h"
 #include "PCLog.h"
+#include "PCRandom.h"
+#include "PCTimeValue.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
 //////////////////////////////////////////////////////////////////////////
 
-PC_REC_MUTEX_HANDLE* CPCLib::m_lock_cs = NULL;
+//CPCLib类的一个实例，负责整个库的初始化和反初始化
+CPCLib g_DO_NOT_DELETE_ME;
+
+PC_REC_MUTEX_HANDLE*	CPCLib::m_lock_cs = NULL;
+LPFN_CONNECTEX			CPCLib::m_lpfnConnectEx = NULL;
 CPCLib::CPCLib() 
 {
 	/* ---- 库初始化内容统一在此处，以下内容不允许调用本类和系统函数之外的函数 ---- */
@@ -14,21 +20,40 @@ CPCLib::CPCLib()
 #if defined (_WIN32)
 	PC_ASSERT(setlocale(LC_ALL, "chs"), "INIT setlocale(LC_ALL, chs) fail!");
 #else
-	PC_ASSERT(setlocale(LC_ALL, "zh_CN.gbk"), "INIT setlocale(LC_ALL, zh_CN.gbk) fail!");
+    PC_ASSERT(setlocale(LC_ALL, "zh_CN.gbk"), "INIT setlocale(LC_ALL, zh_CN.gbk) fail!");
 #endif
 
 	//网络初始化
 #if defined (_WIN32)
 	//初始化winSocket环境
-	WSADATA m_wsaData = { 0 };
-	PC_ASSERT(0 == WSAStartup(MAKEWORD(2, 2), &m_wsaData), "WSAStartup ERROR！errno = %d.\n", WSAGetLastError());
-	PC_ASSERT(LOBYTE(m_wsaData.wVersion) == 2, "WSAStartup return version(%04x) ERROR！\n", m_wsaData.wVersion);
-	PC_ASSERT(HIBYTE(m_wsaData.wVersion) == 2, "WSAStartup return version(%04x) ERROR！\n", m_wsaData.wVersion);
+	WSADATA wsaData = { 0 };
+	PC_ASSERT(0 == WSAStartup(MAKEWORD(2, 2), &wsaData), "WSAStartup ERROR！errno = %d.\n", WSAGetLastError());
+	PC_ASSERT(LOBYTE(wsaData.wVersion) == 2, "WSAStartup return version(%04x) ERROR！\n", wsaData.wVersion);
+	PC_ASSERT(HIBYTE(wsaData.wVersion) == 2, "WSAStartup return version(%04x) ERROR！\n", wsaData.wVersion);
 	
+	//获取ConnectEx函数地址
+	DWORD dwBytes;
+	GUID  GuidConnectEx = WSAID_CONNECTEX;
+	PC_SOCKET sfdTmp = socket(PC_SOCKET_TYPE, SOCK_STREAM, IPPROTO_TCP);
+	int dwErr = WSAIoctl(sfdTmp,
+		SIO_GET_EXTENSION_FUNCTION_POINTER,
+		&GuidConnectEx,
+		sizeof(GuidConnectEx),
+		&m_lpfnConnectEx,
+		sizeof(m_lpfnConnectEx),
+		&dwBytes,
+		NULL,
+		NULL);
+	PCCloseSocket(sfdTmp);
+	PC_ASSERT(dwErr != PC_SOCKET_ERROR, "get  WSAID_CONNECTEX fail!");
 #else
     //防止linux下网络通信时write函数产生的SIGPIPE信号导致程序退出
 	signal(SIGPIPE, SIG_IGN);
 #endif
+
+
+	//初始化随机数发生器
+	CPCRandMT19937::GetRoot()->SRand(static_cast<unsigned int>(CPCTimeValue::TickCount().GetValue()));
 
 	//OPENSSL初始化
 	SSL_load_error_strings();

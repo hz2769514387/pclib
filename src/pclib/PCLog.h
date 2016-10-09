@@ -9,12 +9,6 @@
 PCLIB_NAMESPACE_BEG
 //////////////////////////////////////////////////////////////////////////
 
-//一行日志最大长度，4MB
-#define PC_LOG_LINE_MAX_LEN		(4*1024*1024)
-
-//是否立即写入
-#define PC_LOG_WRITE_ALWAYS		(false)
-
 
 /**
 *@brief		日志类
@@ -24,7 +18,11 @@ class CPCLog :CPCNoCopyable
 {
 public:
 	virtual ~CPCLog();
-	static CPCLog* GetRoot();
+	static CPCLog* GetRoot()
+	{
+		static CPCLog m_Log;
+		return &m_Log;
+	}
 
 	//日志等级
 	enum ePCLogLevel
@@ -58,13 +56,17 @@ public:
 
 	/**
 	*@brief		写日志，日志写完毕后添加换行符
-	*@param		nLevel	[IN]	当条日志的日志等级
-	*@param		pszFmt	[IN]	日志内容格式串/日志内容
+	*@param		pFuncName	[IN]	当条日志的函数名称，可为空
+	*@param		ulLine		[IN]	当条日志在文件中的行数
+	*@param		nLevel		[IN]	当条日志的日志等级
+	*@param		pszFmt		[IN]	日志内容格式串/日志内容
 	*@return	错误码，见PCDebug.h
 	*/
 	int WriteLogFmt(const char* pFuncName, unsigned long ulLine, int nLevel, const char* pszFmt, ...);
 	/**
 	*@brief		写二进制数据日志，日志写完毕后添加换行符
+	*@param		pFuncName	[IN]	当条日志的函数名称，可为空
+	*@param		ulLine		[IN]	当条日志在文件中的行数
 	*@param		nLevel		[IN]	当条日志的日志等级
 	*@param		pszTips		[IN]	前导提示字符串
 	*@param		pszBytes	[IN]	数据日志内容
@@ -88,17 +90,14 @@ private:
 
 	//当前文件的年月日。
 	char m_pszCurrFileTime[PC_MAX_PATH];
-
-	//pclib类的一个实例，负责整个库的初始化和反初始化
-	CPCLib m_DO_NOT_DELETE_ME;
 };
 
 //日志宏
 #define PC_TRACE_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelTrace,_logFmt, ## __VA_ARGS__)
 #define PC_DEBUG_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelDebug,_logFmt, ## __VA_ARGS__)
 #define PC_INFO_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelInfo,_logFmt, ## __VA_ARGS__)
-#define PC_ERROR_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelWarn,_logFmt, ## __VA_ARGS__)
-#define PC_WARN_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelError,_logFmt, ## __VA_ARGS__)
+#define PC_WARN_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelWarn,_logFmt, ## __VA_ARGS__)
+#define PC_ERROR_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelError,_logFmt, ## __VA_ARGS__)
 #define PC_FATAL_LOG(_logFmt, ...)				CPCLog::GetRoot()->WriteLogFmt(__FUNCTION__,__LINE__,CPCLog::eLevelFatal,_logFmt, ## __VA_ARGS__)
 
 //////////////////////////////////////////////////////////////////////////

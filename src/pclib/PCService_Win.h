@@ -92,7 +92,7 @@ private:
 };
 
 
-
+/*
 class CPCServiceAppDemo
 {
 public:
@@ -139,7 +139,7 @@ protected:
 	int m_running;
 	int m_stoped;
 };
-
+*/
 
 
 #endif	// !defined(_WIN32)

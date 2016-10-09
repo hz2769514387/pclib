@@ -24,6 +24,13 @@ public:
 		, m_Deque()
 	{}
 
+	void Put(const T& v)
+	{
+		CPCGuard guard(m_Mutex);
+
+		m_Deque.push_back(v);
+		m_NotEmpty.Notify();
+	}
 	void Put(T&& v)
 	{
 		CPCGuard guard(m_Mutex);
@@ -57,17 +64,17 @@ public:
 	T Front(void)
 	{
 		CPCGuard guard(m_Mutex);
-		return (std::move(m_Deque.front()));
+		return m_Deque.front();
 	}
 
-	bool WaitEmpty(int tm_ms = -1)
+	bool WaitEmpty(int nTimeoutMs = -1)
 	{
 		CPCGuard guard(m_Mutex);
 
 		// ±‹√‚–ÈºŸªΩ–—
 		while (!m_Deque.empty()) 
 		{
-			if (!m_UntilEmpty.Wait(tm_ms))
+			if (!m_UntilEmpty.Wait(nTimeoutMs))
 			{
 				return false;
 			}
