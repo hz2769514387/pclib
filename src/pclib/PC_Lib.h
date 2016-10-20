@@ -335,9 +335,11 @@ public:
 	static void PCSSL_ThreadID_CallBack(CRYPTO_THREADID* id);
 	static void PCSSL_Lock_CallBack(int mode, int type, const char *file, int line);
 
-	//Windows下的ConnectEx函数需手动加载
+	//Windows下的IOCP相关函数需手动加载
 #if defined (_WIN32)
-	static LPFN_CONNECTEX		m_lpfnConnectEx;
+	static LPFN_CONNECTEX				m_lpfnConnectEx;
+	static LPFN_ACCEPTEX				m_lpfnAcceptEx;
+	static LPFN_GETACCEPTEXSOCKADDRS	m_lpfnGetAcceptExSockAddrs;
 #endif
 };
 

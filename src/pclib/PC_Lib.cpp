@@ -10,8 +10,10 @@ PCLIB_NAMESPACE_BEG
 //CPCLib类的一个实例，负责整个库的初始化和反初始化
 CPCLib g_DO_NOT_DELETE_ME;
 
-PC_REC_MUTEX_HANDLE*	CPCLib::m_lock_cs = NULL;
-LPFN_CONNECTEX			CPCLib::m_lpfnConnectEx = NULL;
+PC_REC_MUTEX_HANDLE*		CPCLib::m_lock_cs = NULL;
+LPFN_CONNECTEX				CPCLib::m_lpfnConnectEx = NULL;
+LPFN_ACCEPTEX				CPCLib::m_lpfnAcceptEx = NULL;
+LPFN_GETACCEPTEXSOCKADDRS	CPCLib::m_lpfnGetAcceptExSockAddrs = NULL;
 CPCLib::CPCLib() 
 {
 	/* ---- 库初始化内容统一在此处，以下内容不允许调用本类和系统函数之外的函数 ---- */
@@ -25,7 +27,7 @@ CPCLib::CPCLib()
 
 	//网络初始化
 #if defined (_WIN32)
-	//初始化winSocket环境
+	//初始化WinSock2环境
 	WSADATA wsaData = { 0 };
 	PC_ASSERT(0 == WSAStartup(MAKEWORD(2, 2), &wsaData), "WSAStartup ERROR！errno = %d.\n", WSAGetLastError());
 	PC_ASSERT(LOBYTE(wsaData.wVersion) == 2, "WSAStartup return version(%04x) ERROR！\n", wsaData.wVersion);
@@ -33,8 +35,8 @@ CPCLib::CPCLib()
 	
 	//获取ConnectEx函数地址
 	DWORD dwBytes;
-	GUID  GuidConnectEx = WSAID_CONNECTEX;
 	PC_SOCKET sfdTmp = socket(PC_SOCKET_TYPE, SOCK_STREAM, IPPROTO_TCP);
+	GUID  GuidConnectEx = WSAID_CONNECTEX;
 	int dwErr = WSAIoctl(sfdTmp,
 		SIO_GET_EXTENSION_FUNCTION_POINTER,
 		&GuidConnectEx,
@@ -44,8 +46,35 @@ CPCLib::CPCLib()
 		&dwBytes,
 		NULL,
 		NULL);
-	PCCloseSocket(sfdTmp);
 	PC_ASSERT(dwErr != PC_SOCKET_ERROR, "get  WSAID_CONNECTEX fail!");
+
+	//获取AcceptEx函数地址
+	GUID  GuidAcceptEx = WSAID_ACCEPTEX;
+	dwErr = WSAIoctl(sfdTmp,
+		SIO_GET_EXTENSION_FUNCTION_POINTER,
+		&GuidAcceptEx,
+		sizeof(GuidAcceptEx),
+		&m_lpfnAcceptEx,
+		sizeof(m_lpfnAcceptEx),
+		&dwBytes,
+		NULL,
+		NULL);
+	PC_ASSERT(dwErr != PC_SOCKET_ERROR, "get  WSAID_ACCEPTEX fail!");
+
+	//获取GetAcceptExSockAddrs函数地址
+	GUID  GuidGetAcceptExSockAddrs = WSAID_GETACCEPTEXSOCKADDRS;
+	dwErr = WSAIoctl(sfdTmp,
+		SIO_GET_EXTENSION_FUNCTION_POINTER,
+		&GuidGetAcceptExSockAddrs,
+		sizeof(GuidGetAcceptExSockAddrs),
+		&m_lpfnGetAcceptExSockAddrs,
+		sizeof(m_lpfnGetAcceptExSockAddrs),
+		&dwBytes,
+		NULL,
+		NULL);
+	PC_ASSERT(dwErr != PC_SOCKET_ERROR, "get  WSAID_GETACCEPTEXSOCKADDRS fail!");
+
+	PCCloseSocket(sfdTmp);
 #else
     //防止linux下网络通信时write函数产生的SIGPIPE信号导致程序退出
 	signal(SIGPIPE, SIG_IGN);
