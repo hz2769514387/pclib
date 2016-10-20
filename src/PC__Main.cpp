@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 {
 	CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelDebug, CPCLog::eGenModeDay, true, "d:");
 
-	PC_SOCKET sfd = PCCreateTcpSocket("ftpx", false);
+	PC_SOCKET sfd = PCCreateTcpSocket("500", false);
 	struct sockaddr_in addr4;
 	int res1 = PCDnsParseAddrIPv4("www.baidu.com", "12", &addr4);
 

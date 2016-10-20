@@ -157,7 +157,7 @@ int PCDnsParseAddrIPv4(const char *hostname4, const char * service, struct socka
 	addrHint.ai_family = addr4->sin_family;
 	addrHint.ai_socktype = SOCK_STREAM;
 	addrHint.ai_protocol = IPPROTO_TCP;
-	struct addrinfo *addrServer;
+	struct addrinfo *addrServer = NULL;
 	nRet = getaddrinfo(hostname4, service, &addrHint, &addrServer);
 	if (nRet != 0 || addrServer == NULL)
 	{
