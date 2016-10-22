@@ -64,88 +64,64 @@ void PCShutdownSocket(PC_SOCKET sock)
 	}
 }
 
-PC_SOCKET  PCCreateTcpSocket(const char * service, bool blocked)
+PC_SOCKET  PCCreateTcpSocket(int nPort, bool blocked)
 {
-	//配置地址信息  
-	struct addrinfo addrLocal;
-	memset(&addrLocal, 0, sizeof(addrLocal));
-	addrLocal.ai_family = PC_SOCKET_TYPE;
-	addrLocal.ai_socktype = SOCK_STREAM;
-	addrLocal.ai_protocol = IPPROTO_TCP;
-	if (NULL != service && 0 != service[0])
+	//建立socket  
+	PC_SOCKET sockFd = socket(AF_INET, SOCK_STREAM, 0);
+	if (PC_INVALID_SOCKET == sockFd)
 	{
-		addrLocal.ai_flags = AI_PASSIVE;
-	}	
+		PC_ERROR_LOG("socket(AF_INET, SOCK_STREAM, 0) fail! errno=%d", PCGetLastError(true));
+		return sockFd;
+	}
+	if (!blocked)
+	{
+		// 设置套接字为非阻塞模式
+		if (PCSetNonBlocking(sockFd) != PC_RESULT_SUCCESS)
+		{
+			PCCloseSocket(sockFd);
+			return PC_INVALID_SOCKET;
+		}
+	}
 
-	//获取地址
-	struct addrinfo *addrResults = NULL;
-	int nRet = getaddrinfo(NULL, service, &addrLocal, &addrResults);
-	if (nRet != 0)
+	//绑定地址
+	struct sockaddr_in LocalAddr;
+	memset(&LocalAddr, 0, sizeof(LocalAddr));
+	LocalAddr.sin_family = AF_INET;
+	LocalAddr.sin_addr.s_addr = INADDR_ANY;
+	LocalAddr.sin_port = htons((nPort >= 0 && nPort <= 65535)?nPort:0);
+	if (bind(sockFd, (const sockaddr *)&LocalAddr, sizeof(struct sockaddr)) != 0)
 	{
-		PC_ERROR_LOG("getaddrinfo(%s)  fail. nRet = %d(%s), errno = %d", service, nRet, gai_strerrorA(nRet), PCGetLastError(true));
+		PC_ERROR_LOG("bind(sockFd=%d) fail! errno=%d", sockFd, PCGetLastError(true));
+		PCCloseSocket(sockFd);
 		return PC_INVALID_SOCKET;
 	}
 
-	//根据地址结构进行socket创建和绑定
-	struct addrinfo *addr = addrResults;
-	PC_SOCKET sockFd = PC_INVALID_SOCKET;
-	while (addr != NULL)
+	//服务端套接字需要执行绑定监听
+	if (nPort >= 0 && nPort <= 65535)
 	{
-		//建立socket  
-		sockFd = socket(addrLocal.ai_family, addrLocal.ai_socktype, addrLocal.ai_protocol);
-		if (PC_INVALID_SOCKET != sockFd)
+		if (listen(sockFd, SOMAXCONN) != 0)
 		{
-			if (!blocked)
-			{
-				// 设置套接字为非阻塞模式
-				if (PCSetNonBlocking(sockFd) != PC_RESULT_SUCCESS)
-				{
-					PCCloseSocket(sockFd);
-					addr = addr->ai_next;
-					continue;
-				}
-			}
-
-			if (NULL != service && 0 != service[0])
-			{
-				//服务端套接字需要执行绑定监听
-				if ((bind(sockFd, addr->ai_addr, static_cast<int>(addr->ai_addrlen)) == 0) && listen(sockFd, SOMAXCONN) == 0)
-				{
-					//成功
-					break;
-				}
-			}
-			else
-			{
-				//客户端套接字只需要执行绑定
-				if (bind(sockFd, addr->ai_addr, static_cast<int>(addr->ai_addrlen)) == 0)
-				{
-					//成功
-					break;
-				}
-			}
+			PC_ERROR_LOG("listen(sockFd=%d) fail! errno=%d", sockFd, PCGetLastError(true));
 			PCCloseSocket(sockFd);
+			return PC_INVALID_SOCKET;
 		}
-		PC_WARN_LOG("use socket fail. try next. errno = %d", PCGetLastError(true));
-		addr = addr->ai_next;
 	}
-	freeaddrinfo(addrResults);
 	return sockFd;	
 }
 
-int PCDnsParseAddrIPv4(const char *hostname4, const char * service, struct sockaddr_in *addr4)
+int PCDnsParseAddrIPv4(const char *pszHost, int nPort, struct sockaddr_in *addr4)
 {
-	if (hostname4 == NULL || hostname4[0] == 0 || service == NULL || addr4 == NULL)
+	if (pszHost == NULL || pszHost[0] == 0 || nPort < 0 || nPort > 65535)
 	{
-		PC_ERROR_LOG("params err! hostname4 = %s", hostname4);
+		PC_ERROR_LOG("params err! pszHost = %s, nPort = %d", pszHost, nPort);
 		return PC_RESULT_PARAM;
 	}
 	addr4->sin_family = AF_INET;
-	addr4->sin_port = htons(atoi(service));
+	addr4->sin_port = htons(nPort);
 	memset(addr4->sin_zero, 0, sizeof(addr4->sin_zero));
 
 	//假设hostname4是一个点分十进制，无需DNS解析，直接转换
-	int nRet = inet_pton(addr4->sin_family, hostname4, (void*)(&(addr4->sin_addr)));
+	int nRet = inet_pton(addr4->sin_family, pszHost, (void*)(&(addr4->sin_addr)));
 	if (nRet > 0)
 	{
 		return PC_RESULT_SUCCESS;
@@ -158,10 +134,13 @@ int PCDnsParseAddrIPv4(const char *hostname4, const char * service, struct socka
 	addrHint.ai_socktype = SOCK_STREAM;
 	addrHint.ai_protocol = IPPROTO_TCP;
 	struct addrinfo *addrServer = NULL;
-	nRet = getaddrinfo(hostname4, service, &addrHint, &addrServer);
+
+	char szService[11] = { 0 };
+	sprintf(szService, "%d", nPort);
+	nRet = getaddrinfo(pszHost, szService, &addrHint, &addrServer);
 	if (nRet != 0 || addrServer == NULL)
 	{
-		PC_ERROR_LOG("getaddrinfo(%s:%s)  fail. nRet = %d(%s), errno = %d", hostname4, service, nRet, gai_strerrorA(nRet), PCGetLastError(true));
+		PC_ERROR_LOG("getaddrinfo(%s:%d)  fail. nRet = %d(%s), errno = %d", pszHost, nPort, nRet, gai_strerrorA(nRet), PCGetLastError(true));
 		return PC_RESULT_SYSERROR;
 	}
 

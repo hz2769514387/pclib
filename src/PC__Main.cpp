@@ -18,50 +18,73 @@
 #include "pclib/PCUtilSymEncrypt.h"
 #include "pclib/PCUtilSystem.h"
 #include "pclib/PCRandom.h"
+#include "pclib/PCTcpPoller.h"
+#include "pclib/PCTcpSockHandle.h"
 
 using namespace std;
 using namespace pclib;
 
-class THR : public CPCThread
+
+
+
+class CSevEchoProcessHandle : public CPCTcpSockHandle
 {
 public:
-	THR() {}
 
-public:
-	void init(int  name)
-	{
-		sprintf(szThreadName, "%d",name);
-		
-		PC_INFO_LOG("I AM INIT ! -- [%s]", szThreadName);
-
-		
+	//完成请求后回调函数
+	void DoSendded(bool bSucceed, unsigned long dwSendedLen){ 
+		PC_TRACE_LOG("send(%lu) bytes", dwSendedLen); 
+		PostRecv();
 	}
-    void Svc() override
-	{
-		while (m_bRunning)
-		{
-			//PC_INFO_LOG( "I AM RUNNING ! -- [%s]", szThreadName);
-			PCSleepMsec(50);
-		}
-		PC_INFO_LOG("I AM over ! -- [%s]", szThreadName);
+	void DoRecved(bool bSucceed, const char *szRecvedBuff, unsigned long dwRecvedLen){ 
+		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, szRecvedBuff); 
+		PostSend(szRecvedBuff, dwRecvedLen);
 	}
-
-	
-protected:
-    mutable char szThreadName[10];
+	void DoClose(){ 
+		PC_TRACE_LOG("closed."); 
+	}
 };
 
+class CClientProcessHandle : public CPCTcpSockHandle
+{
+public:
 
-
+	//完成请求后回调函数
+	void DoConnected(bool bSucceed){
+		PC_TRACE_LOG("connected"); 
+		PostSend("hello,world!", 12);
+	}
+	void DoSendded(bool bSucceed, unsigned long dwSendedLen){
+		PC_TRACE_LOG("send(%lu) bytes", dwSendedLen);
+		PostRecv();
+	}
+	void DoRecved(bool bSucceed, const char *szRecvedBuff, unsigned long dwRecvedLen){
+		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, szRecvedBuff);
+		Cleanup();
+	}
+};
 
 int main(int argc, char* argv[])
 {
-	CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelDebug, CPCLog::eGenModeDay, true, "d:");
+	CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "d:");
 
-	PC_SOCKET sfd = PCCreateTcpSocket("500", false);
-	struct sockaddr_in addr4;
-	int res1 = PCDnsParseAddrIPv4("www.baidu.com", "12", &addr4);
+	CPCTcpPoller::GetInstance()->StartTcpPoller();
 
+
+#ifndef TXXX
+		//客户端
+		CClientProcessHandle hClient;
+		hClient.Create(-1);
+		hClient.PostConnect("127.0.0.1", 3333);
+#else
+		//服务器
+		CPCTcpSockHandle hListen;
+		hListen.Create(3333);
+		CSevEchoProcessHandle hProcess1;
+		hProcess1.PostAccept(hListen.m_hTcpSocket);
+#endif
+
+	while (1){ PCSleepMsec(1000); }
 
 	std::vector<wchar_t> pszDestx;
     int xkx = PCMbsToUnicode("zhong", pszDestx,false);
@@ -178,25 +201,6 @@ int main(int argc, char* argv[])
 	//
 	LL = PCSymDecypt(PC_AES_ECB, pszDest3, LL, (unsigned char *)"1234567812345678", 16, pszDest13, sizeof(pszDest13), "pboc", NULL);
 
-
-	//////////////////////////
-	THR foo[100];
-	for (int i = 0; i < 100; i++)
-	{
-		foo[i].init(i);
-		foo[i].StartThread();
-	}
-	PCSleepMsec(100);
-
-	for (int i = 0; i < 100; i++)
-	{
-		foo[i].StopThread();
-		
-	}
-	PCSleepMsec(100);
-	
-
-	
 
 
 	unsigned char pszDest[122] = { 0 };

@@ -42,7 +42,7 @@
 #define PC_LOG_LINE_MAX_LEN		(4*1024*1024)
 
 //日志是否立即写入
-#define PC_LOG_WRITE_ALWAYS		(false)
+#define PC_LOG_WRITE_ALWAYS		(true)
 
 
 /*----------------------------宏实现的部分跨平台函数---------------------------*/

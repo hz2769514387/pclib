@@ -45,6 +45,7 @@ local.properties
 *.sln
 *.vcxproj
 *.filters
+*.ini
 
 # Build results
 
