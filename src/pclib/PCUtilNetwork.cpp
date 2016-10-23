@@ -95,17 +95,6 @@ PC_SOCKET  PCCreateTcpSocket(int nPort, bool blocked)
 		PCCloseSocket(sockFd);
 		return PC_INVALID_SOCKET;
 	}
-
-	//服务端套接字需要执行绑定监听
-	if (nPort >= 0 && nPort <= 65535)
-	{
-		if (listen(sockFd, SOMAXCONN) != 0)
-		{
-			PC_ERROR_LOG("listen(sockFd=%d) fail! errno=%d", sockFd, PCGetLastError(true));
-			PCCloseSocket(sockFd);
-			return PC_INVALID_SOCKET;
-		}
-	}
 	return sockFd;	
 }
 

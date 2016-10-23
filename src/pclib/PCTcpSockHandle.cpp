@@ -23,24 +23,41 @@ CPCTcpSockHandle::~CPCTcpSockHandle()
 
 bool CPCTcpSockHandle::Create(int nPort, bool bBlock)
 {
+	//创建套接字
 	Cleanup();
 	m_hTcpSocket = PCCreateTcpSocket(nPort, bBlock);
 	if (PC_INVALID_SOCKET == m_hTcpSocket)
 	{
 		return false;
 	}
-	if (nPort >= 0 && nPort <= 65535)
-	{
-		m_bListenSocket = true;
 
 #if defined (_WIN32)
-		//绑定完成端口
-		if (!CPCTcpPoller::GetInstance()->AssociateSocketWithIOCP(m_hTcpSocket, (ULONG_PTR)this))
+	//绑定完成端口
+	if (!CPCTcpPoller::GetInstance()->AssociateSocketWithIOCP(m_hTcpSocket, (ULONG_PTR)this))
+	{
+		PCCloseSocket(m_hTcpSocket);
+		return false;
+	}
+#else
+	//关联epoll句柄
+	m_epollFd = CPCTcpPoller::GetInstance()->GetEpollFd();
+	if (PC_INVALID_SOCKET == m_epollFd)
+	{
+		PCCloseSocket(m_hTcpSocket);
+		return false;
+	}
+#endif
+
+	//如果是服务端套接字还要开始监听
+	if (nPort >= 0 && nPort <= 65535)
+	{
+		if (listen(m_hTcpSocket, SOMAXCONN) != 0)
 		{
+			PC_ERROR_LOG("listen(m_hTcpSocket=%d) fail! errno=%d", m_hTcpSocket, PCGetLastError(true));
 			PCCloseSocket(m_hTcpSocket);
 			return false;
 		}
-#endif
+		m_bListenSocket = true;
 	}
 	return true;
 }
@@ -104,12 +121,6 @@ bool CPCTcpSockHandle::PostConnect(const char *pszHostAddress, int nPort)
 	}
 
 #if defined (_WIN32)
-	//将SOCKET与完成端口进行关联
-	if (!CPCTcpPoller::GetInstance()->AssociateSocketWithIOCP(m_hTcpSocket, (ULONG_PTR)this))
-	{
-		PCCloseSocket(m_hTcpSocket);
-		return false;
-	}
 
 	//获取地址结构
 	struct sockaddr_in RemoteAddr;

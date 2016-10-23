@@ -30,9 +30,8 @@ int  PCSockIsConnected(PC_SOCKET sock);
 void PCShutdownSocket(PC_SOCKET sock);
 
 /**
-*@brief		创建一个指定客户端或服务端类型的Tcp套接字
-*@param		nPort	[IN]	当nPort为合法端口（0~65535）时此套接字为服务端套接字，函数会执行监听动作
-*							当nPort为其他值时此套接字为客户端套接字
+*@brief		创建一个Tcp套接字
+*@param		nPort	[IN]	套接字需要绑定的端口，一般来说，只有监听套接字才需要指定端口号，其他传入-1即可
 *			blocked	[IN]	是否阻塞，true阻塞 false不阻塞
 *@return	成功则返回套接字描述符，失败返回PC_INVALID_SOCKET
 */

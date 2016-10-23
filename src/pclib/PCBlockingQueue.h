@@ -13,7 +13,8 @@ PCLIB_NAMESPACE_BEG
 /**
 *@brief		JAVA中的阻塞队列(BlockingQueue类)。
 */
-template <typename T> class CPCBlockingQueue :CPCNoCopyable
+template <typename T> 
+class CPCBlockingQueue :CPCNoCopyable
 {
 public:
 

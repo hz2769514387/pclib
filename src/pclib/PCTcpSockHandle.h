@@ -27,7 +27,7 @@ public:
 	bool Create(int nPort, bool bBlock = false);
 	void Cleanup();
 
-	//投递请求，一般由用户主动调用
+	//投递请求，一般由用户主动调用<投递发送请求时，数据最大长度为 PER_SOCK_REQBUF_SIZE>
 	bool PostConnect(const char *pszHostAddress, int nPort);
 	bool PostSend(const char *szSendBuff, unsigned long nSendLen);
 	bool PostRecv();
@@ -46,9 +46,12 @@ public:
 	PC_SOCKET	m_hTcpSocket;				//内部维护的一个SOCKET
 	bool		m_bListenSocket;			//SOCKET类型是否为监听类型
 	char	m_pszRemoteIP[MAX_IP_STR_LEN];	//对方的IP地址(仅针对accept的socket)
-
-protected:
 	CPCRecursiveLock	m_Mutex;			//给子类提供的锁
+
+#if defined (_WIN32)
+#else
+	PC_SOCKET	m_epollFd;					//对于Linux，内部需要维护epoll的句柄
+#endif
 };
 
 
@@ -102,6 +105,9 @@ protected:
 	#define OP_WRITE		1
 	#define OP_CONNECT		2
 	#define OP_ACCEPT		3
+#else
+	//epoll一次等待的最大事件数量
+	#define MAX_EPOLL_EVENTS	(100)
 #endif
 
 //////////////////////////////////////////////////////////////////////////

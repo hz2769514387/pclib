@@ -12,11 +12,29 @@ PCLIB_NAMESPACE_BEG
 // IO多路复用工作者线程：  为IO多路复用服务的工作者线程
 //         网络请求事件到达时使用多个线程分配IO事件。
 ///////////////////////////////////////////////////////////////////
+bool CPCTcpPollerThread::Init()
+{
+#if defined (_WIN32)
+	m_hCompletionPort = CPCTcpPoller::GetInstance()->GetIOCPHandle();
+	if (NULL == m_hCompletionPort)
+	{
+		PC_ERROR_LOG("CPCTcpPoller::GetInstance()->GetIOCPHandle()  == NULL ");
+		return false;
+	}
+#else
+	m_epollFd = epoll_create(MAX_EPOLL_EVENTS);  
+	if (m_epollFd <= 0)
+	{
+		CLOG_ERROR(pLog, "epoll_create = %d fail! errno=%d", m_epollFd, PCGetLastError());
+		return false;
+	}
+#endif
+	return true;
+}
+
 void CPCTcpPollerThread::Svc()
 {
 #if defined (_WIN32)
-	HANDLE			hCompletionPort = CPCTcpPoller::GetInstance()->GetIOCPHandle();
-
 	BOOL			bRet = FALSE;
 	CPCTcpSockHandle *pHandle = NULL;
 	IOCP_IO_CTX    *lpIOContext = NULL;
@@ -25,7 +43,7 @@ void CPCTcpPollerThread::Svc()
 	//处理完成端口上的消息
 	while (m_bRunning)
 	{
-		bRet = GetQueuedCompletionStatus(hCompletionPort,&dwBytesXfered,(PULONG_PTR)&pHandle,(LPOVERLAPPED*)&lpIOContext,PER_GET_POLLER_QUEUE_WAIT_TIME);
+		bRet = GetQueuedCompletionStatus(m_hCompletionPort, &dwBytesXfered, (PULONG_PTR)&pHandle, (LPOVERLAPPED*)&lpIOContext, PER_GET_POLLER_QUEUE_WAIT_TIME);
 		if (!bRet)
 		{
 			//检查错误
@@ -85,14 +103,52 @@ void CPCTcpPollerThread::Svc()
 			lpIOContext->m_pOwner->DoAccept(true, lpIOContext->m_szIOBuf, dwBytesXfered);
 			break;
 		default:
-			PC_ERROR_LOG("收到未知消息 %02x", lpIOContext->m_byOpType);
+			PC_ERROR_LOG("Recved unknown op type: %d", lpIOContext->m_byOpType);
 			break;
 		}
 		delete lpIOContext;
 	}
-
 #else
+	while (m_bRunning)
+	{
+		int fds = epoll_wait(m_epollFd, m_epollEvents, MAX_EPOLL_EVENTS, PER_GET_POLLER_QUEUE_WAIT_TIME);
+		if (fds < 0)
+		{
+			PC_ERROR_LOG("epoll_wait = %d error! errno = %d. continue.", fds, PCGetLastError());
+			PCSleepMsec(PER_GET_POLLER_QUEUE_WAIT_TIME);
+			continue;
+		}
 
+		for (int i = 0; i < fds; i++)
+		{
+			CPCTcpSockHandle *	eventHandle = (CPCTcpSockHandle *)m_epollEvents[i].data.ptr;
+			if(eventHandle == NULL)
+			{
+				PC_ERROR_LOG("eventHandle = NULL, continue.");
+				continue;
+			}
+			if (m_epollEvents[i].events & EPOLLIN)
+			{
+				if(eventHandle->m_bListenSocket)
+				{
+					eventHandle->OnAccept();
+				}
+				else
+				{
+					eventHandle->OnReceive(0);
+				}
+			}
+			if (m_epollEvents[i].events & EPOLLOUT)
+			{
+				eventHandle->OnSend(0);
+			}
+			if (m_epollEvents[i].events & EPOLLERR)
+			{
+				eventHandle->OnClose();
+			}
+		}
+	}
+	close(m_epollFd);
 #endif
 }
 
@@ -101,9 +157,14 @@ void CPCTcpPollerThread::Svc()
 ///////////////////////////////////////////////////////////////////
 // IO多路复用单例类：  提供启动和停止等管理机制
 ///////////////////////////////////////////////////////////////////
-CPCTcpPoller::CPCTcpPoller(void) :
-	m_hCompletionPort(NULL)
+CPCTcpPoller::CPCTcpPoller(void) 
 {
+#if defined (_WIN32)
+	m_hCompletionPort = NULL;
+#else
+	m_dwCurrentEpollFd = 0;
+#endif
+	m_nWorkerThreadCount = 0;
 }
 
 CPCTcpPoller::~CPCTcpPoller(void)
@@ -130,11 +191,16 @@ bool CPCTcpPoller::StartTcpPoller(unsigned int nPollerThreadCount)
 #endif
 	
 	// 建立工作者线程
+	m_nWorkerThreadCount = 0;
 	for (unsigned int i = 0; i < nPollerThreadCount; i++)
 	{
-		CPCTcpPollerThread* phWorkerThread = new CPCTcpPollerThread();
-		m_phWorkerThreadList.push_back(phWorkerThread);
-		if (false == phWorkerThread->StartThread(5000))
+		m_phWorkerThreadList[i] = new CPCTcpPollerThread();
+		m_nWorkerThreadCount++;
+		if (false == m_phWorkerThreadList[i]->Init())
+		{
+			return false;
+		}
+		if (false == m_phWorkerThreadList[i]->StartThread(5000))
 		{
 			return false;
 		}
@@ -147,13 +213,11 @@ bool CPCTcpPoller::StartTcpPoller(unsigned int nPollerThreadCount)
 void CPCTcpPoller::StopTcpPoller()
 {
 	//退出线程
-	for (auto it = m_phWorkerThreadList.begin(); it != m_phWorkerThreadList.end(); it++)
+	for (unsigned int i = 0; i < m_nWorkerThreadCount; i++)
 	{
-		CPCTcpPollerThread* phWorkerThread = *it;
-		phWorkerThread->StopThread(500);
-		delete phWorkerThread;
+		m_phWorkerThreadList[i]->StopThread(500);
+		delete m_phWorkerThreadList[i];
 	}
-	m_phWorkerThreadList.clear();
 
 #if defined (_WIN32)
 	// 关闭IOCP句柄
@@ -167,21 +231,6 @@ void CPCTcpPoller::StopTcpPoller()
 	PC_TRACE_LOG(" StopTcpPoller all ok.");
 }
 
-bool CPCTcpPoller::AssociateSocketWithIOCP(PC_SOCKET socket, ULONG_PTR dwCompletionKey)
-{
-	if (m_hCompletionPort == NULL)
-	{
-		PC_ERROR_LOG("AssociateSocketWithIOCP fail. m_hCompletionPort == NULL");
-		return false;
-	}
-	HANDLE hCompletionPort = CreateIoCompletionPort((HANDLE)socket, m_hCompletionPort, dwCompletionKey, 0);
-	if (hCompletionPort != m_hCompletionPort)
-	{
-		PC_ERROR_LOG("CreateIoCompletionPort fail. hCompletionPort != m_hCompletionPort");
-		return false;
-	}
-	return true;
-}
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_END
