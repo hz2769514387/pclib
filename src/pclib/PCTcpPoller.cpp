@@ -71,7 +71,6 @@ void CPCTcpPollerThread::Svc()
 					pHandle->DoClose();
 				}
 			}
-			delete lpIOContext;
 			continue;
 		}
 
@@ -106,7 +105,6 @@ void CPCTcpPollerThread::Svc()
 			PC_ERROR_LOG("Recved unknown op type: %d", lpIOContext->m_byOpType);
 			break;
 		}
-		delete lpIOContext;
 	}
 #else
 	while (m_bRunning)

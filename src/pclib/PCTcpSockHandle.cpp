@@ -132,8 +132,8 @@ bool CPCTcpSockHandle::PostConnect(const char *pszHostAddress, int nPort)
 	}
 
 	//Á¬½Ó
-	IOCP_IO_CTX* locpCtx = new IOCP_IO_CTX(OP_CONNECT, this);
-	BOOL rc = CPCLib::m_lpfnConnectEx(m_hTcpSocket, (const struct sockaddr FAR *)&RemoteAddr, sizeof(RemoteAddr), NULL, 0, NULL, &(locpCtx->m_olOriginal));
+	IOCP_IO_CTX locpCtx(OP_CONNECT, this);
+	BOOL rc = CPCLib::m_lpfnConnectEx(m_hTcpSocket, (const struct sockaddr FAR *)&RemoteAddr, sizeof(RemoteAddr), NULL, 0, NULL, &(locpCtx.m_olOriginal));
 	if (!rc)
 	{
 		int nErrNo = WSAGetLastError();
@@ -160,9 +160,9 @@ bool CPCTcpSockHandle::PostSend(const char *szSendBuff, unsigned long nSendLen)
 	}
 
 #if defined (_WIN32)
-	IOCP_IO_CTX* locpCtx = new IOCP_IO_CTX(OP_WRITE, this, szSendBuff, nSendLen);
+	IOCP_IO_CTX locpCtx(OP_WRITE, this, szSendBuff, nSendLen);
 	DWORD dwSendBytes;
-	int rc = WSASend(m_hTcpSocket, &(locpCtx->m_wsBufPointer), 1, &dwSendBytes, 0, &(locpCtx->m_olOriginal), NULL);
+	int rc = WSASend(m_hTcpSocket, &(locpCtx.m_wsBufPointer), 1, &dwSendBytes, 0, &(locpCtx.m_olOriginal), NULL);
 	if (rc != 0)
 	{
 		int nErrNo = WSAGetLastError();
@@ -190,16 +190,16 @@ bool CPCTcpSockHandle::PostRecv()
 	}
 
 #if defined (_WIN32)
-	IOCP_IO_CTX* locpCtx = new IOCP_IO_CTX(OP_READ, this);
+	IOCP_IO_CTX locpCtx(OP_READ, this);
 	DWORD dwRecvedSize = 0;
 	DWORD dwFlags = 0;
 
 	int rc = WSARecv(m_hTcpSocket,
-		&(locpCtx->m_wsBufPointer),
+		&(locpCtx.m_wsBufPointer),
 		1,
 		&dwRecvedSize,
 		&dwFlags,
-		&(locpCtx->m_olOriginal),
+		&(locpCtx.m_olOriginal),
 		NULL);
 	if (rc != 0)
 	{
@@ -243,18 +243,18 @@ bool CPCTcpSockHandle::PostAccept(PC_SOCKET sListen)
 		return false;
 	}
 
-	IOCP_IO_CTX* locpCtx = new IOCP_IO_CTX(OP_ACCEPT, this);
+	IOCP_IO_CTX locpCtx(OP_ACCEPT, this);
 	DWORD dwRecvedSize = 0;
 
 	BOOL rc = CPCLib::m_lpfnAcceptEx(
 		sListen,
 		m_hTcpSocket,
-		locpCtx->m_szIOBuf,
+		locpCtx.m_szIOBuf,
 		PER_SOCK_REQBUF_SIZE - ((sizeof(sockaddr_in) + 16) * 2),
 		sizeof(sockaddr_in) + 16,
 		sizeof(sockaddr_in) + 16,
 		&dwRecvedSize,
-		&(locpCtx->m_olOriginal));
+		&(locpCtx.m_olOriginal));
 
 	if (!rc)
 	{

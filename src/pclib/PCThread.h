@@ -26,7 +26,7 @@ public:
 	bool	StartThread(int nTimeoutMs = -1);	
     void	StopThread(int nTimeoutMs = -1);
 
-    //线程的入口，如果你用的是继承，则需要覆盖此函数；
+    //线程的入口，需要覆盖此函数；
     virtual void Svc() = 0;
 
 	//不常用函数
