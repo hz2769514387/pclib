@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 		//客户端
 		CClientProcessHandle hClient;
 		hClient.Create(-1);
-		hClient.PostConnect("127.0.0.1", 3333);
+		hClient.PostConnect("192.168.30.122", 10099);
 #else
 		//服务器
 		CPCTcpSockHandle hListen;

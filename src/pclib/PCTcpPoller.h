@@ -74,6 +74,7 @@ public:
 	//轮流从每个CPCTcpPollerThread获取Epoll句柄
 	PC_SOCKET GetEpollFd()
 	{
+		CPCGuard guard(m_Mutex);
 		if (m_dwCurrentEpoll >= m_nWorkerThreadCount)
 		{
 			m_dwCurrentEpoll = 0;
@@ -90,6 +91,8 @@ protected:
 	// 工作线程列表
 	CPCTcpPollerThread* m_phWorkerThreadList[MAX_POLLER_THREAD_COUNT];
 	unsigned int	m_nWorkerThreadCount;
+
+	CPCRecursiveLock	m_Mutex;			
 
 #if defined (_WIN32)
 	// 完成端口的句柄
