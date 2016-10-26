@@ -68,6 +68,7 @@ void CPCTcpPollerThread::Svc()
 				}
 				else
 				{
+					//可能是客户端发出的连接请求被拒绝
 					pHandle->DoClose();
 				}
 			}

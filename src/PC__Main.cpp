@@ -67,7 +67,7 @@ public:
 int main(int argc, char* argv[])
 {
 	CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "d:");
-
+	
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
 
 
