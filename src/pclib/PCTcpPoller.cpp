@@ -25,7 +25,7 @@ bool CPCTcpPollerThread::Init()
 	m_epollFd = CPCTcpPoller::GetInstance()->GetEpollFd();
 	if (m_epollFd <= 0)
 	{
-		CLOG_ERROR(pLog, "CPCTcpPoller::GetInstance()->GetEpollFd() = %d fail! ", m_epollFd);
+        PC_ERROR_LOG("CPCTcpPoller::GetInstance()->GetEpollFd() = %d fail! ", m_epollFd);
 		return false;
 	}
 #endif
@@ -68,8 +68,16 @@ void CPCTcpPollerThread::Svc()
 				}
 				else
 				{
-					//可能是客户端发出的连接请求被拒绝
-					pHandle->DoClose();
+					if (lpIOContext->m_byOpType == OP_CONNECT)
+					{
+						//客户端发出的连接请求被拒绝
+						pHandle->DoConnected(false);
+					}
+					else
+					{
+						//其他错误
+						pHandle->DoClose();
+					}
 				}
 			}
 			continue;
@@ -100,7 +108,15 @@ void CPCTcpPollerThread::Svc()
 			pHandle->DoSendded(true, dwBytesXfered);
 			break;
 		case OP_ACCEPT:
-			lpIOContext->m_pOwner->DoAccept(true, lpIOContext->m_szIOBuf, dwBytesXfered);
+			if (0 == dwBytesXfered)
+			{
+				//说明用户连接之后并未发送任何数据便直接断开了
+				lpIOContext->m_pOwner->DoClose();
+			}
+			else
+			{
+				lpIOContext->m_pOwner->DoAccept(true, lpIOContext->m_szIOBuf, dwBytesXfered);
+			}
 			break;
 		default:
 			PC_ERROR_LOG("Recved unknown op type: %d", lpIOContext->m_byOpType);
@@ -113,9 +129,9 @@ void CPCTcpPollerThread::Svc()
 		int fds = epoll_wait(m_epollFd, m_epollEvents, MAX_EPOLL_EVENTS, PER_GET_POLLER_QUEUE_WAIT_TIME);
 		if (fds < 0)
 		{
-			PC_ERROR_LOG("epoll_wait = %d error! errno = %d. continue.", fds, PCGetLastError());
-			PCSleepMsec(PER_GET_POLLER_QUEUE_WAIT_TIME);
-			continue;
+            PC_ERROR_LOG("epoll_wait = %d error! errno = %d. continue.", fds, PCGetLastError());
+            PCSleepMsec(PER_GET_POLLER_QUEUE_WAIT_TIME);
+            continue;
 		}
 
 		for (int i = 0; i < fds; i++)
@@ -130,20 +146,20 @@ void CPCTcpPollerThread::Svc()
 			{
 				if(eventHandle->m_bListenSocket)
 				{
-					eventHandle->OnAccept();
+                    eventHandle->DoAccept(true, "", 0);
 				}
 				else
 				{
-					eventHandle->OnReceive(0);
+                    eventHandle->DoRecved(true, "", 0);
 				}
 			}
 			if (m_epollEvents[i].events & EPOLLOUT)
 			{
-				eventHandle->OnSend(0);
+                eventHandle->DoSendded(true, 0);
 			}
 			if (m_epollEvents[i].events & EPOLLERR)
 			{
-				eventHandle->OnClose();
+                eventHandle->DoClose();
 			}
 		}
 	}
@@ -174,10 +190,6 @@ bool CPCTcpPoller::StartTcpPoller()
 {
 	unsigned int nPollerThreadCount = 0;
 #if defined (_WIN32)
-	if (m_hCompletionPort)
-	{
-		return true;
-	}
 	m_hCompletionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
 	if (NULL == m_hCompletionPort)
 	{
@@ -189,15 +201,16 @@ bool CPCTcpPoller::StartTcpPoller()
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
 	nPollerThreadCount = 2*si.dwNumberOfProcessors;
-#else
-	if (m_epollFd > 0)
+	if(nPollerThreadCount > MAX_POLLER_THREAD_COUNT)
 	{
-		return true;
+		PC_ERROR_LOG("nPollerThreadCount = %d > (%d) fail." , nPollerThreadCount, MAX_POLLER_THREAD_COUNT);
+		return false;
 	}
+#else
 	m_epollFd = epoll_create(MAX_EPOLL_EVENTS);  
 	if (m_epollFd <= 0)
 	{
-		CLOG_ERROR(pLog, "epoll_create = %d fail! errno=%d", m_epollFd, PCGetLastError());
+        PC_ERROR_LOG( "epoll_create = %d fail! errno=%d", m_epollFd, PCGetLastError());
 		return false;
 	}
 

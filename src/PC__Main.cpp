@@ -66,7 +66,7 @@ public:
 
 int main(int argc, char* argv[])
 {
-	CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "d:");
+    CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "/home/hz");
 	
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
 
@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 		//客户端
 		CClientProcessHandle hClient;
 		hClient.Create(-1);
-		hClient.PostConnect("192.168.30.122", 10099);
+		hClient.PostConnect("127.0.0.1", 3333);
 #else
 		//服务器
 		CPCTcpSockHandle hListen;

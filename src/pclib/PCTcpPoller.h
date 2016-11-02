@@ -13,7 +13,10 @@ PCLIB_NAMESPACE_BEG
 #define PER_GET_POLLER_QUEUE_WAIT_TIME	(50)
 
 //最大IO多路复用工作线程个数
-#define MAX_POLLER_THREAD_COUNT	(64)
+#define MAX_POLLER_THREAD_COUNT	(128)
+
+//epoll一次等待的事件数量
+#define MAX_EPOLL_EVENTS        (100)
 
 /**
 *@brief	IO多路复用工作者线程

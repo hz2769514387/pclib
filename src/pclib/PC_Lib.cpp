@@ -11,9 +11,11 @@ PCLIB_NAMESPACE_BEG
 CPCLib g_DO_NOT_DELETE_ME;
 
 PC_REC_MUTEX_HANDLE*		CPCLib::m_lock_cs = NULL;
-LPFN_CONNECTEX				CPCLib::m_lpfnConnectEx = NULL;
-LPFN_ACCEPTEX				CPCLib::m_lpfnAcceptEx = NULL;
-LPFN_GETACCEPTEXSOCKADDRS	CPCLib::m_lpfnGetAcceptExSockAddrs = NULL;
+#if defined (_WIN32)
+	LPFN_CONNECTEX				CPCLib::m_lpfnConnectEx = NULL;
+	LPFN_ACCEPTEX				CPCLib::m_lpfnAcceptEx = NULL;
+	LPFN_GETACCEPTEXSOCKADDRS	CPCLib::m_lpfnGetAcceptExSockAddrs = NULL;
+#endif
 CPCLib::CPCLib() 
 {
 	/* ---- 库初始化内容统一在此处，以下内容不允许调用本类和系统函数之外的函数 ---- */
@@ -22,7 +24,7 @@ CPCLib::CPCLib()
 #if defined (_WIN32)
 	PC_ASSERT(setlocale(LC_ALL, "chs"), "INIT setlocale(LC_ALL, chs) fail!");
 #else
-    PC_ASSERT(setlocale(LC_ALL, "zh_CN.gbk"), "INIT setlocale(LC_ALL, zh_CN.gbk) fail!");
+    PC_ASSERT(setlocale(LC_ALL, "zh_CN.GBK"), "INIT setlocale(LC_ALL, zh_CN.GBK) fail!");
 #endif
 
 	//网络初始化

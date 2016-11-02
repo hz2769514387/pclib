@@ -129,7 +129,7 @@ int PCDnsParseAddrIPv4(const char *pszHost, int nPort, struct sockaddr_in *addr4
 	nRet = getaddrinfo(pszHost, szService, &addrHint, &addrServer);
 	if (nRet != 0 || addrServer == NULL)
 	{
-		PC_ERROR_LOG("getaddrinfo(%s:%d)  fail. nRet = %d(%s), errno = %d", pszHost, nPort, nRet, gai_strerrorA(nRet), PCGetLastError(true));
+        PC_ERROR_LOG("getaddrinfo(%s:%d)  fail. nRet = %d(%s), errno = %d", pszHost, nPort, nRet, gai_strerror(nRet), PCGetLastError(true));
 		return PC_RESULT_SYSERROR;
 	}
 
