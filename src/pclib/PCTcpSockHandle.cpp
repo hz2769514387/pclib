@@ -13,6 +13,11 @@ CPCTcpSockHandle::CPCTcpSockHandle() :
 	m_hTcpSocket(PC_INVALID_SOCKET),
 	m_bListenSocket(false)
 {
+#if defined (_WIN32)
+#else
+    m_epollFd = CPCTcpPoller::GetInstance()->GetEpollFd();
+    m_eventFd = CPCTcpPoller::GetInstance()->GetEventFd();
+#endif
 	Cleanup();
 }
 
@@ -37,15 +42,7 @@ bool CPCTcpSockHandle::Create(int nPort, bool bBlock)
 	{
 		PCCloseSocket(m_hTcpSocket);
 		return false;
-	}
-#else
-	//关联epoll句柄
-	m_epollFd = CPCTcpPoller::GetInstance()->GetEpollFd();
-	if (PC_INVALID_SOCKET == m_epollFd)
-	{
-		PCCloseSocket(m_hTcpSocket);
-		return false;
-	}
+    }
 #endif
 
 	//如果是服务端套接字还要开始监听

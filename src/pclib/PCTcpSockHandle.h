@@ -50,7 +50,9 @@ public:
 
 #if defined (_WIN32)
 #else
-	PC_SOCKET	m_epollFd;					//对于Linux，内部需要维护epoll的句柄
+    //对于Linux，内部需要维护epoll相关的的句柄
+    int	m_epollFd;
+    int m_eventFd;
 #endif
 };
 
@@ -106,8 +108,7 @@ public:
 	#define OP_CONNECT		2
 	#define OP_ACCEPT		3
 #else
-	//epoll一次等待的最大事件数量
-	#define MAX_EPOLL_EVENTS	(100)
+
 #endif
 
 //////////////////////////////////////////////////////////////////////////

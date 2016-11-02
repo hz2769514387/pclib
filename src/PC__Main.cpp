@@ -70,6 +70,8 @@ int main(int argc, char* argv[])
 	
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
 
+    int eFd = CPCTcpPoller::GetInstance()->GetEventFd();
+
 
 #ifndef TXXX
 		//¿Í»§¶Ë

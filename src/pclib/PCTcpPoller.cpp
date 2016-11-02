@@ -23,11 +23,18 @@ bool CPCTcpPollerThread::Init()
 	}
 #else
 	m_epollFd = CPCTcpPoller::GetInstance()->GetEpollFd();
-	if (m_epollFd <= 0)
-	{
-        PC_ERROR_LOG("CPCTcpPoller::GetInstance()->GetEpollFd() = %d fail! ", m_epollFd);
-		return false;
-	}
+    m_eventFd = CPCTcpPoller::GetInstance()->GetEventFd();
+
+    //将eventfd放入epoll队列
+    struct epoll_event read_event;
+    read_event.events = EPOLLHUP | EPOLLERR | EPOLLIN;
+    read_event.data.fd = m_eventFd;
+    int nRet = epoll_ctl(m_epollFd, EPOLL_CTL_ADD, m_eventFd, &read_event);
+    if (nRet == -1)
+    {
+        PC_ERROR_LOG("epoll_ctl(eventfd) = %d, errno = %d fail! ", nRet, PCGetLastError());
+        return false;
+    }
 #endif
 	return true;
 }
@@ -177,6 +184,7 @@ CPCTcpPoller::CPCTcpPoller(void)
 	m_hCompletionPort = NULL;
 #else
 	m_epollFd = -1;
+    m_eventFd = -1;
 #endif
 	m_nWorkerThreadCount = 0;
 }
@@ -213,6 +221,12 @@ bool CPCTcpPoller::StartTcpPoller()
         PC_ERROR_LOG( "epoll_create = %d fail! errno=%d", m_epollFd, PCGetLastError());
 		return false;
 	}
+    m_eventFd = eventfd(0, 0);
+    if (m_eventFd == -1)
+    {
+        PC_ERROR_LOG( "eventfd = -1 fail! errno=%d",  PCGetLastError());
+        return false;
+    }
 
 	//对于linux，事件派发线程数1个就足够了
 	nPollerThreadCount = 1;
@@ -259,6 +273,11 @@ void CPCTcpPoller::StopTcpPoller()
 		close(m_epollFd);
 		m_epollFd = -1;
 	}
+    if (m_eventFd != -1)
+    {
+        close(m_eventFd);
+        m_eventFd = -1;
+    }
 #endif
 
 	PC_TRACE_LOG(" StopTcpPoller all ok.");

@@ -35,7 +35,8 @@ public:
 	HANDLE	m_hCompletionPort;
 #else
 	//epoll句柄和数据
-	PC_SOCKET	m_epollFd;
+    int     m_epollFd;
+    int     m_eventFd;
 	struct	epoll_event m_epollEvents[MAX_EPOLL_EVENTS];
 #endif
 };
@@ -74,8 +75,9 @@ public:
 	//获取完成端口句柄
 	HANDLE	GetIOCPHandle(){ return m_hCompletionPort; }
 #else
-	//获取Epoll句柄
-	PC_SOCKET GetEpollFd(){ return m_epollFd; }
+    //获取Epoll句柄和事件通知句柄
+    int GetEpollFd(){ return m_epollFd; }
+    int GetEventFd(){ return m_eventFd; }
 #endif
 	
 protected:
@@ -92,8 +94,9 @@ protected:
 	// 完成端口的句柄
 	HANDLE		m_hCompletionPort;
 #else
-	// epoll句柄
-	PC_SOCKET	m_epollFd;
+    // epoll句柄和事件通知句柄
+    int     	m_epollFd;
+    int         m_eventFd;
 #endif
 };
 

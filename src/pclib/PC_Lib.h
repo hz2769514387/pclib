@@ -200,21 +200,22 @@
 #else
 	#include <fcntl.h>
 	#include <unistd.h>
-	#include <arpa/inet.h> 
+    #include <netdb.h>
+    #include <dirent.h>
+    #include <iconv.h>
+    #include <pthread.h>
+    #include <dlfcn.h>
+    #include <signal.h>
+    #include <ftw.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <arpa/inet.h>
 	#include <sys/epoll.h>  
-	#include <netinet/in.h>
 	#include <sys/types.h>
 	#include <sys/socket.h>  
-    #include <netdb.h>
-	#include <arpa/inet.h>
+    #include <sys/eventfd.h>
 	#include <sys/stat.h> 
 	#include <sys/time.h> 
-	#include <dirent.h>
-	#include <iconv.h>  
-	#include <pthread.h>
-	#include <dlfcn.h>
-	#include <signal.h>
-	#include <ftw.h>
 	#include <sys/syscall.h>
 #endif
 
