@@ -26,7 +26,7 @@ using namespace pclib;
 
 
 
-
+#  include <cstddef>
 class CSevEchoProcessHandle : public CPCTcpSockHandle
 {
 public:
@@ -86,15 +86,7 @@ int main(int argc, char* argv[])
 
 	while (1){ PCSleepMsec(1000); }
 
-	std::vector<wchar_t> pszDestx;
-    int xkx = PCMbsToUnicode("zhong", pszDestx,false);
-    
-
-	std::vector<char> pszDestc;
-    xkx = PCUnicodeToMbs(L"zhong", pszDestc,true);
-	PC_INFO_LOG("%s", &pszDestc[0]);
-    xkx = PCUnicodeToMbs(L"zhong", pszDestc, false);
-	PC_INFO_LOG("%s", &pszDestc[0]);
+	
 
 	//TIME
 	CPCTimeValue tvk = CPCTimeValue::Now();

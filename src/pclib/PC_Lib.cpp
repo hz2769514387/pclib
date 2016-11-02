@@ -151,7 +151,9 @@ void CPCLib::PCInitRecMutex(PC_REC_MUTEX_HANDLE* mutex)
 }
 void CPCLib::PCSSL_ThreadID_CallBack(CRYPTO_THREADID* id)
 {
-	CRYPTO_THREADID_set_numeric(id, PCGetCurrentThreadID());
+	unsigned long  ulThreadId = static_cast<unsigned long>(PCGetCurrentThreadID());
+	CRYPTO_THREADID_set_numeric(id, ulThreadId);
+	PC_TRACE_LOG("ssl call thread id.ulThreadId > %ul", ulThreadId);
 }
 void CPCLib::PCSSL_Lock_CallBack(int mode, int type, const char *file, int line)
 {
@@ -163,7 +165,7 @@ void CPCLib::PCSSL_Lock_CallBack(int mode, int type, const char *file, int line)
 	{
 		PC_REC_MUTEX_UNLOCK(&(m_lock_cs[type]));
 	}
-	PC_TRACE_LOG("lock - mode=%d,type=%d,file=%s,line=%d", mode, type, file, line);
+	PC_TRACE_LOG("ssl call lock - mode=%d,type=%d,file=%s,line=%d", mode, type, file, line);
 }
 
 //////////////////////////////////////////////////////////////////////////

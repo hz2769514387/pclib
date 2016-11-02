@@ -48,7 +48,7 @@ public:
 	static CPCTcpPoller* GetInstance(){static CPCTcpPoller m_me;return &m_me;}
 
 	//启动和停止
-	bool StartTcpPoller(unsigned int nPollerThreadCount = 10);
+	bool StartTcpPoller();
 	void StopTcpPoller();
 
 #if defined (_WIN32)
@@ -71,17 +71,8 @@ public:
 	//获取完成端口句柄
 	HANDLE	GetIOCPHandle(){ return m_hCompletionPort; }
 #else
-	//轮流从每个CPCTcpPollerThread获取Epoll句柄
-	PC_SOCKET GetEpollFd()
-	{
-		CPCGuard guard(m_Mutex);
-		if (m_dwCurrentEpoll >= m_nWorkerThreadCount)
-		{
-			m_dwCurrentEpoll = 0;
-		}
-		PC_TRACE_LOG( "Get NO.%d epoll fd.",m_dwCurrentEpoll);
-		return m_phWorkerThreadList[m_dwCurrentEpoll++]->m_epollFd;
-	}
+	//获取Epoll句柄
+	PC_SOCKET GetEpollFd(){ return m_epollFd; }
 #endif
 	
 protected:
@@ -96,10 +87,10 @@ protected:
 
 #if defined (_WIN32)
 	// 完成端口的句柄
-	HANDLE			m_hCompletionPort;
+	HANDLE		m_hCompletionPort;
 #else
-	// 轮到的epoll句柄
-	unsigned int	m_dwCurrentEpollFd;
+	// epoll句柄
+	PC_SOCKET	m_epollFd;
 #endif
 };
 

@@ -72,7 +72,7 @@ int  PCUrlEncode(const char *pszSrc, char *pszDest, unsigned int nDestBufLen, in
 int  PCUrlDecode(const char *pszSrc, char *pszDest, unsigned int nDestBufLen);
 
 /**
-*@brief		将GBK编码的字符串转换为UTF8编码
+*@brief		将GBK编码的字符串转换为UTF8编码<c++11可使用std::wstring_convert和std::codecvt_utf8 来处理UTF8与WChar之间的互转>
 *@param		pszSrc		[IN]	GBK编码的原串
 *@param		pszDest		[OUT]	转换为目的串UTF8的缓冲区
 *@param		nDestBufLen	[IN]	目的串缓冲区长度
@@ -88,25 +88,6 @@ int  PCGbkToUtf8(const char *pszSrc, char *pszDest, unsigned int nDestBufLen);
 *@return	成功时返回>=0表示目标串pszDest转换后实际数据的长度； <0时为错误码，见PC_Lib.h
 */
 int  PCUtf8ToGbk(const char *pszSrc, char *pszDest, unsigned int nDestBufLen);
-
-/**
-*@brief		将多字节编码的字符串转换为Unicode编码，linux下由于用到了locale，所以线程不安全。
-*@param		pszSrc		[IN]	原串
-*@param		pszDest		[OUT]	目的串缓冲区(如果调用前pszDest有数据，则调用后会丢失)，调用后可以用 const wchar_t* pret = &pszDest[0];
-*@param		bUtf8		[IN]	原串pszSrc是否为utf8编码，false表示GBK编码
-*@return	错误码，见PC_Lib.h
-*/
-int  PCMbsToUnicode(const char *pszSrc, std::vector<wchar_t> &pszDest, bool bUtf8 = false );
-
-/**
-*@brief		将Unicode编码转换为多字节编码的字符串，linux下由于用到了locale，所以线程不安全。
-*@param		pszSrc		[IN]	原串
-*@param		pszDest		[OUT]	目的串缓冲区(如果调用前pszDest有数据，则调用后会丢失)，调用后可以用 const char* pret = &pszDest[0];
-*@param		bUtf8		[IN]	目的串pszDest是否输出为utf8编码，false表示GBK编码
-*@return	错误码，见PC_Lib.h
-*/
-int  PCUnicodeToMbs(const wchar_t *pszSrc, std::vector<char> &pszDest, bool bUtf8 = false);
-
 
 /**
 *@brief		将两个字节数组异或，结果保存在pszDest中。pszSrc和pszDest的长度最好相等。

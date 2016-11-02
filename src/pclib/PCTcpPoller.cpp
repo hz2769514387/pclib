@@ -22,10 +22,10 @@ bool CPCTcpPollerThread::Init()
 		return false;
 	}
 #else
-	m_epollFd = epoll_create(MAX_EPOLL_EVENTS);  
+	m_epollFd = CPCTcpPoller::GetInstance()->GetEpollFd();
 	if (m_epollFd <= 0)
 	{
-		CLOG_ERROR(pLog, "epoll_create = %d fail! errno=%d", m_epollFd, PCGetLastError());
+		CLOG_ERROR(pLog, "CPCTcpPoller::GetInstance()->GetEpollFd() = %d fail! ", m_epollFd);
 		return false;
 	}
 #endif
@@ -147,7 +147,6 @@ void CPCTcpPollerThread::Svc()
 			}
 		}
 	}
-	close(m_epollFd);
 #endif
 }
 
@@ -161,7 +160,7 @@ CPCTcpPoller::CPCTcpPoller(void)
 #if defined (_WIN32)
 	m_hCompletionPort = NULL;
 #else
-	m_dwCurrentEpollFd = 0;
+	m_epollFd = -1;
 #endif
 	m_nWorkerThreadCount = 0;
 }
@@ -171,22 +170,39 @@ CPCTcpPoller::~CPCTcpPoller(void)
 	this->StopTcpPoller();
 }
 
-bool CPCTcpPoller::StartTcpPoller(unsigned int nPollerThreadCount)
+bool CPCTcpPoller::StartTcpPoller()
 {
+	unsigned int nPollerThreadCount = 0;
 #if defined (_WIN32)
-	//已经初始化过了
 	if (m_hCompletionPort)
 	{
 		return true;
 	}
-
-	// 建立第一个完成端口
 	m_hCompletionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
 	if (NULL == m_hCompletionPort)
 	{
 		PC_ERROR_LOG("Init CreateIoCompletionPort fail！ errno = %d" , PCGetLastError());
 		return false;
 	}
+
+	//对于windows，采用cpu核心数*2的事件派发线程数
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	nPollerThreadCount = 2*si.dwNumberOfProcessors;
+#else
+	if (m_epollFd > 0)
+	{
+		return true;
+	}
+	m_epollFd = epoll_create(MAX_EPOLL_EVENTS);  
+	if (m_epollFd <= 0)
+	{
+		CLOG_ERROR(pLog, "epoll_create = %d fail! errno=%d", m_epollFd, PCGetLastError());
+		return false;
+	}
+
+	//对于linux，事件派发线程数1个就足够了
+	nPollerThreadCount = 1;
 #endif
 	
 	// 建立工作者线程
@@ -219,11 +235,16 @@ void CPCTcpPoller::StopTcpPoller()
 	}
 
 #if defined (_WIN32)
-	// 关闭IOCP句柄
 	if (m_hCompletionPort)
 	{
 		CloseHandle(m_hCompletionPort);
 		m_hCompletionPort = NULL;
+	}
+#else
+	if (m_epollFd > 0)
+	{
+		close(m_epollFd);
+		m_epollFd = -1;
 	}
 #endif
 
