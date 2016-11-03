@@ -16,11 +16,6 @@ bool CPCTcpPollerThread::Init()
 {
 #if defined (_WIN32)
 	m_hCompletionPort = CPCTcpPoller::GetInstance()->GetIOCPHandle();
-	if (NULL == m_hCompletionPort)
-	{
-		PC_ERROR_LOG("CPCTcpPoller::GetInstance()->GetIOCPHandle()  == NULL ");
-		return false;
-	}
 #else
 	m_epollFd = CPCTcpPoller::GetInstance()->GetEpollFd();
     m_eventFd = CPCTcpPoller::GetInstance()->GetEventFd();
@@ -257,7 +252,7 @@ void CPCTcpPoller::StopTcpPoller()
 	//ÍË³öÏß³Ì
 	for (unsigned int i = 0; i < m_nWorkerThreadCount; i++)
 	{
-		m_phWorkerThreadList[i]->StopThread(500);
+		m_phWorkerThreadList[i]->StopThread(5000);
 		delete m_phWorkerThreadList[i];
 	}
 

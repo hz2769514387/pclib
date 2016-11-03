@@ -141,11 +141,11 @@ int CPCLog::WriteLogFmt(const char* pFuncName, unsigned long ulLine, int nLevel,
 	{
 		if (pFuncName == NULL || pFuncName[0] == 0 || ulLine == 0)
 		{
-			printf("%s %s %lu %s\r\n\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, m_pFmtBuff);
+			printf("%s %s %lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, m_pFmtBuff);
 		}
 		else
 		{
-			printf("%s %s %lu %s:%lu %s\r\n\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
+			printf("%s %s %lu %s:%lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
 		}
 	}
 	return PC_RESULT_SUCCESS;

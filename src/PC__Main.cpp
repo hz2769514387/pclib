@@ -8,7 +8,6 @@
 #include "pclib/PCService_Win.h"
 #include "pclib/PCBlockingQueue.h"
 #include "pclib/PCBuffer.h"
-#include "pclib/PCDisruptor.h"
 #include "pclib/PCUtilCheckSum.h"
 #include "pclib/PCUtilFirewall_Win.h"
 #include "pclib/PCUtilMisc_Linux.h"
@@ -26,7 +25,7 @@ using namespace pclib;
 
 
 
-#  include <cstddef>
+
 class CSevEchoProcessHandle : public CPCTcpSockHandle
 {
 public:
@@ -70,10 +69,10 @@ int main(int argc, char* argv[])
 	
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
 
-    int eFd = CPCTcpPoller::GetInstance()->GetEventFd();
+    
 
 
-#ifndef TXXX
+#ifdef TXXX
 		//¿Í»§¶Ë
 		CClientProcessHandle hClient;
 		hClient.Create(-1);
