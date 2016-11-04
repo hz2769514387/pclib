@@ -29,6 +29,8 @@ using namespace pclib;
 class CSevEchoProcessHandle : public CPCTcpSockHandle
 {
 public:
+	CPCTcpSockHandle & m_HListen;
+	CSevEchoProcessHandle(CPCTcpSockHandle & hListen) :m_HListen(hListen){	}
 
 	//完成请求后回调函数
 	void DoSendded(bool bSucceed, unsigned long dwSendedLen){ 
@@ -41,6 +43,7 @@ public:
 	}
 	void DoClose(){ 
 		PC_TRACE_LOG("closed."); 
+		PostAccept(m_HListen.m_hTcpSocket);
 	}
 };
 
@@ -69,7 +72,7 @@ int main(int argc, char* argv[])
 	
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
 
-    
+	
 
 
 #ifdef TXXX
@@ -81,7 +84,7 @@ int main(int argc, char* argv[])
 		//服务器
 		CPCTcpSockHandle hListen;
 		hListen.Create(3333);
-		CSevEchoProcessHandle hProcess1;
+		CSevEchoProcessHandle hProcess1(hListen);
 		hProcess1.PostAccept(hListen.m_hTcpSocket);
 #endif
 

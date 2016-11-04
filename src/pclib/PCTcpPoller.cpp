@@ -45,6 +45,12 @@ void CPCTcpPollerThread::Svc()
 	//处理完成端口上的消息
 	while (m_bRunning)
 	{
+		if (lpIOContext)
+		{
+			delete lpIOContext;
+			lpIOContext = NULL;
+		}
+
 		bRet = GetQueuedCompletionStatus(m_hCompletionPort, &dwBytesXfered, (PULONG_PTR)&pHandle, (LPOVERLAPPED*)&lpIOContext, PER_GET_POLLER_QUEUE_WAIT_TIME);
 		if (!bRet)
 		{
