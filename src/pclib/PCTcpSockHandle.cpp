@@ -129,7 +129,7 @@ bool CPCTcpSockHandle::PostConnect(const char *pszHostAddress, int nPort)
 	}
 
 	//Á¬½Ó
-	IOCP_IO_CTX *locpCtx = new IOCP_IO_CTX(OP_CONNECT, this);
+	IOCP_IO_CTX *locpCtx = new(std::nothrow) IOCP_IO_CTX(OP_CONNECT, this);
 	BOOL rc = CPCLib::m_lpfnConnectEx(m_hTcpSocket, (const struct sockaddr FAR *)&RemoteAddr, sizeof(RemoteAddr), NULL, 0, NULL, &(locpCtx->m_olOriginal));
 	if (!rc)
 	{
@@ -157,7 +157,7 @@ bool CPCTcpSockHandle::PostSend(const char *szSendBuff, unsigned long nSendLen)
 	}
 
 #if defined (_WIN32)
-	IOCP_IO_CTX *locpCtx = new IOCP_IO_CTX(OP_WRITE, this, szSendBuff, nSendLen);
+	IOCP_IO_CTX *locpCtx = new(std::nothrow) IOCP_IO_CTX(OP_WRITE, this, szSendBuff, nSendLen);
 	DWORD dwSendBytes;
 	int rc = WSASend(m_hTcpSocket, &(locpCtx->m_wsBufPointer), 1, &dwSendBytes, 0, &(locpCtx->m_olOriginal), NULL);
 	if (rc != 0)
@@ -187,7 +187,7 @@ bool CPCTcpSockHandle::PostRecv()
 	}
 
 #if defined (_WIN32)
-	IOCP_IO_CTX *locpCtx = new IOCP_IO_CTX(OP_READ, this);
+	IOCP_IO_CTX *locpCtx = new(std::nothrow) IOCP_IO_CTX(OP_READ, this);
 	DWORD dwRecvedSize = 0;
 	DWORD dwFlags = 0;
 
@@ -240,7 +240,7 @@ bool CPCTcpSockHandle::PostAccept(PC_SOCKET sListen)
 		return false;
 	}
 
-	IOCP_IO_CTX *locpCtx = new IOCP_IO_CTX(OP_ACCEPT, this);
+	IOCP_IO_CTX *locpCtx = new(std::nothrow) IOCP_IO_CTX(OP_ACCEPT, this);
 	DWORD dwRecvedSize = 0;
 
 	BOOL rc = CPCLib::m_lpfnAcceptEx(
