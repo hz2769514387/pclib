@@ -33,15 +33,18 @@ public:
 	CSevEchoProcessHandle(CPCTcpSockHandle & hListen) :m_HListen(hListen){	}
 
 	//完成请求后回调函数
-	void DoSendded(bool bSucceed, unsigned long dwSendedLen){ 
+	void OnAccepted(){
+		PostRecv();
+	}
+	void OnSendded( unsigned long dwSendedLen){
 		PC_TRACE_LOG("send(%lu) bytes", dwSendedLen); 
 		PostRecv();
 	}
-	void DoRecved(bool bSucceed, const char *szRecvedBuff, unsigned long dwRecvedLen){ 
-		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, szRecvedBuff); 
-		PostSend(szRecvedBuff, dwRecvedLen);
+	void OnRecved( unsigned long dwRecvedLen){
+		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, m_szIOBuf);
+		PostSend(m_szIOBuf, dwRecvedLen);
 	}
-	void DoClose(){ 
+	void OnClosed(){
 		PC_TRACE_LOG("closed."); 
 		PostAccept(m_HListen.m_hTcpSocket);
 	}
@@ -60,8 +63,8 @@ public:
 		PC_TRACE_LOG("send(%lu) bytes", dwSendedLen);
 		PostRecv();
 	}
-	void DoRecved(bool bSucceed, const char *szRecvedBuff, unsigned long dwRecvedLen){
-		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, szRecvedBuff);
+	void DoRecved(bool bSucceed, unsigned long dwRecvedLen){
+		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, m_szIOBuf);
 		Cleanup();
 	}
 };
@@ -72,10 +75,7 @@ int main(int argc, char* argv[])
 	
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
 
-	
-
-
-#ifdef TXXX
+#ifndef TXXX
 		//客户端
 		CClientProcessHandle hClient;
 		hClient.Create(-1);

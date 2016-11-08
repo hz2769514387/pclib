@@ -9,9 +9,6 @@
 PCLIB_NAMESPACE_BEG
 //////////////////////////////////////////////////////////////////////////
 
-//每获取一次时间队列数据的等待超时时间(毫秒)
-#define PER_GET_POLLER_QUEUE_WAIT_TIME	(50)
-
 //最大IO多路复用工作线程个数
 #define MAX_POLLER_THREAD_COUNT	(128)
 

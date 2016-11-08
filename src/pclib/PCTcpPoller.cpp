@@ -45,22 +45,12 @@ void CPCTcpPollerThread::Svc()
 	//处理完成端口上的消息
 	while (m_bRunning)
 	{
-		if (lpIOContext)
-		{
-			delete lpIOContext;
-			lpIOContext = NULL;
-		}
-
-		bRet = GetQueuedCompletionStatus(m_hCompletionPort, &dwBytesXfered, (PULONG_PTR)&pHandle, (LPOVERLAPPED*)&lpIOContext, PER_GET_POLLER_QUEUE_WAIT_TIME);
+		bRet = GetQueuedCompletionStatus(m_hCompletionPort, &dwBytesXfered, (PULONG_PTR)&pHandle, (LPOVERLAPPED*)&lpIOContext, INFINITE);
 		if (!bRet)
 		{
 			//检查错误
 			DWORD dwLastErr = GetLastError();
-			if (dwLastErr == WAIT_TIMEOUT)
-			{
-				continue;
-			}
-			else if (dwLastErr == ERROR_INVALID_HANDLE)
+			if (dwLastErr == ERROR_INVALID_HANDLE || dwLastErr == ERROR_ABANDONED_WAIT_0)
 			{
 				//用户关闭了完成端口句柄，此时线程应该退出（VISTA以上系统才有效）
 				PC_ERROR_LOG("user closed IOCP, CPCTcpPollerThread exit!");
@@ -71,22 +61,18 @@ void CPCTcpPollerThread::Svc()
 			{
 				if (pHandle->m_bListenSocket)
 				{
-					//监听Socket取队列事件出现异常，由于监听Socket上只可能出现ACCEPT事件，此事直接关掉到来的连接
-					lpIOContext->m_pOwner->DoClose();
+					//监听Socket取队列事件出现异常，由于监听Socket上只可能出现ACCEPT事件，此时直接关掉到来的连接
+					lpIOContext->m_pOwner->ProcessClose();
 				}
 				else
 				{
-					if (lpIOContext->m_byOpType == OP_CONNECT)
-					{
-						//客户端发出的连接请求被拒绝
-						pHandle->DoConnected(false);
-					}
-					else
-					{
-						//其他错误
-						pHandle->DoClose();
-					}
+					//客户端发出的连接请求被拒绝或其他错误
+					pHandle->ProcessClose();
 				}
+			}
+			else
+			{
+				PC_WARN_LOG("GetQueuedCompletionStatus fail! dwLastErr = %lu, dwBytesXfered = %lu", dwLastErr, dwBytesXfered);
 			}
 			continue;
 		}
@@ -96,38 +82,34 @@ void CPCTcpPollerThread::Svc()
 		PC_ASSERT(lpIOContext, "exception!lpIOContext == NULL");
 
 		//正常处理
-		switch (lpIOContext->m_byOpType)
+		switch (pHandle->m_ConnOpt)
 		{
-		case OP_CONNECT:
-			pHandle->DoConnected(true);
+		case CPCTcpSockHandle::csEnumOpt::cseConnect:
+			pHandle->ProcessConnect();
 			break;
-		case OP_READ:
+		case CPCTcpSockHandle::csEnumOpt::cseRead:
 			if (0 == dwBytesXfered)
 			{
 				//连接被对方断开
-				pHandle->DoClose();
+				pHandle->ProcessClose();
 			}
 			else
 			{
-				pHandle->DoRecved(true, lpIOContext->m_szIOBuf, dwBytesXfered);
+				pHandle->ProcessRecv(dwBytesXfered);
 			}
 			break;
-		case OP_WRITE:
-			pHandle->DoSendded(true, dwBytesXfered);
+		case CPCTcpSockHandle::csEnumOpt::cseWrite:
+			pHandle->ProcessSend( dwBytesXfered);
 			break;
-		case OP_ACCEPT:
-			if (0 == dwBytesXfered)
+		case CPCTcpSockHandle::csEnumOpt::cseAccept:
+			if (dwBytesXfered > 0)
 			{
-				//说明用户连接之后并未发送任何数据便直接断开了
-				lpIOContext->m_pOwner->DoClose();
+				PC_WARN_LOG("cseAccept warning: %d bytes data is NOT NEED.", dwBytesXfered);
 			}
-			else
-			{
-				lpIOContext->m_pOwner->DoAccept(true, lpIOContext->m_szIOBuf, dwBytesXfered);
-			}
+			lpIOContext->m_pOwner->ProcessAccept();
 			break;
 		default:
-			PC_ERROR_LOG("Recved unknown op type: %d", lpIOContext->m_byOpType);
+			PC_ERROR_LOG("Recved unknown op type: %d", pHandle->m_ConnOpt);
 			break;
 		}
 	}
@@ -255,13 +237,6 @@ bool CPCTcpPoller::StartTcpPoller()
 
 void CPCTcpPoller::StopTcpPoller()
 {
-	//退出线程
-	for (unsigned int i = 0; i < m_nWorkerThreadCount; i++)
-	{
-		m_phWorkerThreadList[i]->StopThread(5000);
-		delete m_phWorkerThreadList[i];
-	}
-
 #if defined (_WIN32)
 	if (m_hCompletionPort)
 	{
@@ -274,13 +249,19 @@ void CPCTcpPoller::StopTcpPoller()
 		close(m_epollFd);
 		m_epollFd = -1;
 	}
-    if (m_eventFd != -1)
-    {
-        close(m_eventFd);
-        m_eventFd = -1;
-    }
+	if (m_eventFd != -1)
+	{
+		close(m_eventFd);
+		m_eventFd = -1;
+	}
 #endif
 
+	//退出线程
+	for (unsigned int i = 0; i < m_nWorkerThreadCount; i++)
+	{
+		m_phWorkerThreadList[i]->StopThread(5000);
+		delete m_phWorkerThreadList[i];
+	}
 	PC_TRACE_LOG(" StopTcpPoller all ok.");
 }
 

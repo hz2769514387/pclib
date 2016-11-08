@@ -59,7 +59,10 @@ void PCShutdownSocket(PC_SOCKET sock)
 		sock = PC_INVALID_SOCKET;
 
 		//SD_BOTHªÚSHUT_RDWR
-		shutdown(tempSocket, 2);
+		if (0 != shutdown(tempSocket, 2))
+		{
+			PC_WARN_LOG("shutdown(2) fail! errno=%d", PCGetLastError(true));
+		}
 		PCCloseSocket(tempSocket);
 	}
 }
