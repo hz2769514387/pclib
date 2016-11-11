@@ -61,7 +61,7 @@ void PCShutdownSocket(PC_SOCKET sock)
 		//SD_BOTHªÚSHUT_RDWR
 		if (0 != shutdown(tempSocket, 2))
 		{
-			PC_WARN_LOG("shutdown(2) fail! errno=%d", PCGetLastError(true));
+			PC_WARN_LOG("Gracefully shutdown(2) fail! force close connection. errno=%d", PCGetLastError(true));
 		}
 		PCCloseSocket(tempSocket);
 	}

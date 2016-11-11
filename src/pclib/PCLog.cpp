@@ -125,11 +125,11 @@ int CPCLog::WriteLogFmt(const char* pFuncName, unsigned long ulLine, int nLevel,
 	unsigned long ulThradID = PCGetCurrentThreadID();
 	if (pFuncName == NULL || pFuncName[0] == 0 || ulLine == 0)
 	{
-		fprintf(m_pLogFile, "%s %s %lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID,  m_pFmtBuff);
+		fprintf(m_pLogFile, "%s %s %05lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID,  m_pFmtBuff);
 	}
 	else
 	{
-		fprintf(m_pLogFile, "%s %s %lu %s:%lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
+		fprintf(m_pLogFile, "%s %s %05lu %s:%lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
 	}
 	if(PC_LOG_WRITE_ALWAYS)
 	{
@@ -141,11 +141,11 @@ int CPCLog::WriteLogFmt(const char* pFuncName, unsigned long ulLine, int nLevel,
 	{
 		if (pFuncName == NULL || pFuncName[0] == 0 || ulLine == 0)
 		{
-			printf("%s %s %lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, m_pFmtBuff);
+			printf("%s %s %05lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, m_pFmtBuff);
 		}
 		else
 		{
-			printf("%s %s %lu %s:%lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
+			printf("%s %s %05lu %s:%lu %s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, m_pFmtBuff);
 		}
 	}
 	return PC_RESULT_SUCCESS;
@@ -187,11 +187,11 @@ int CPCLog::WriteLogBytes(const char* pFuncName, unsigned long ulLine, int nLeve
 	unsigned long ulThradID = PCGetCurrentThreadID();
 	if (pFuncName == NULL || pFuncName[0] == 0 || ulLine == 0)
 	{
-		fprintf(m_pLogFile, "%s %s %lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pszTips, m_pFmtBuff);
+		fprintf(m_pLogFile, "%s %s %05lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pszTips, m_pFmtBuff);
 	}
 	else
 	{
-		fprintf(m_pLogFile, "%s %s %lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
+		fprintf(m_pLogFile, "%s %s %05lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
 	}
 	if (PC_LOG_WRITE_ALWAYS)
 	{
@@ -203,11 +203,11 @@ int CPCLog::WriteLogBytes(const char* pFuncName, unsigned long ulLine, int nLeve
 	{
 		if (pFuncName == NULL || pFuncName[0] == 0 || ulLine == 0)
 		{
-			printf("%s %s %lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pszTips, m_pFmtBuff);
+			printf("%s %s %05lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pszTips, m_pFmtBuff);
 		}
 		else
 		{
-			printf("%s %s %lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
+			printf("%s %s %05lu %s:%lu %s%s\r\n", m_LOG_LEVEL_NAME[nLevel], pszTimeBuf, ulThradID, pFuncName, ulLine, pszTips, m_pFmtBuff);
 		}
 	}
 	return PC_RESULT_SUCCESS;
@@ -237,7 +237,7 @@ int CPCLog::CheckLogger(char pszTimeBuf[PC_MAX_PATH] )
 
 	//如果当前文件和当前时间不同，重新打开。
 	CPCTimeValue tv = CPCTimeValue::Now();
-	int nRet = tv.Format("%Y_%m_%d_%H_%M_%S_@@@", pszTimeBuf, PC_MAX_PATH);
+	int nRet = tv.Format("%Y_%m_%d_%H:%M:%S_@@@", pszTimeBuf, PC_MAX_PATH);
 	if (nRet != PC_RESULT_SUCCESS)
 	{
 		return nRet;

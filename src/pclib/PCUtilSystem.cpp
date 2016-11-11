@@ -292,6 +292,53 @@ int  PCRemoveRecursive(const char * pszPath)
 	return PC_RESULT_SUCCESS;
 }
 
+long long PCGetFileSize(const char * pszPath)
+{
+#if defined (_WIN32)
+	HANDLE hFile = CreateFileA(pszPath, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(INVALID_HANDLE_VALUE == hFile)
+	{
+		PC_ERROR_LOG("CreateFileA(%s) = NULL! errno = %d", pszPath, PCGetLastError());
+		return PC_RESULT_FILEOPEN;
+	}
+
+	LARGE_INTEGER FileSize; 
+	BOOL bRet = GetFileSizeEx(hFile, &FileSize);
+	CloseHandle(hFile);
+	if (FALSE == bRet)
+	{
+		PC_ERROR_LOG("GetFileSizeEx(%s) = NULL! errno = %d", pszPath, PCGetLastError());
+		return PC_RESULT_SYSERROR;
+	}
+	return FileSize.QuadPart;
+
+#else
+	//打开文件
+	FILE* fp = fopen(pszPath, "rb");
+	if (NULL == fp)
+	{
+		PC_ERROR_LOG("fopen(%s) = NULL! errno = %d", pszPath, PCGetLastError());
+		return PC_RESULT_FILEOPEN;
+	}
+	std::shared_ptr<FILE> fAgent(fp, fclose);
+
+	int nRet = fseek(fp, 0, SEEK_END);
+	if (0 != nRet)
+	{
+		PC_ERROR_LOG("fseek(%s) = %d fail! errno = %d", pszPath, nRet, PCGetLastError());
+		return PC_RESULT_SYSERROR;
+	}
+	fpos_t pos;
+	nRet = fgetpos(fp, &pos);
+	if (0 != nRet)
+	{
+		PC_ERROR_LOG("fgetpos(%s) = %d fail! errno = %d", pszPath, nRet, PCGetLastError());
+		return PC_RESULT_SYSERROR;
+	}
+	return pos.__pos;
+#endif
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_END

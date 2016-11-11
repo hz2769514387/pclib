@@ -63,6 +63,12 @@ int  PCMkdirRecursive(const char * pszPath);
 */
 int  PCRemoveRecursive(const char * pszPath);
 
+/**
+*@brief		获取文件大小（单位：字节）
+*@param		pszPath			[IN]	文件路径，最大长度为 PC_MAX_PATH
+*@return	成功时为>=0的文件字节大小，<0时为错误码，见PC_Lib.h
+*/
+long long PCGetFileSize(const char * pszPath);
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_END

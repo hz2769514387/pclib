@@ -83,7 +83,7 @@ set_target_properties(LogicTest  PROPERTIES PREFIX "")
 # -----------------------------------------------------------------------------
 if (WIN32)
 	#加入MFC支持，静态链接1 动态链接2
-	SET(CMAKE_MFC_FLAG 1)
+	SET(CMAKE_MFC_FLAG 0)
 
 	#设置静态链接C运行库
 	SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")

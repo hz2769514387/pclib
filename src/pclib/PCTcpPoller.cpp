@@ -116,11 +116,11 @@ void CPCTcpPollerThread::Svc()
 #else
 	while (m_bRunning)
 	{
-		int fds = epoll_wait(m_epollFd, m_epollEvents, MAX_EPOLL_EVENTS, PER_GET_POLLER_QUEUE_WAIT_TIME);
+		int fds = epoll_wait(m_epollFd, m_epollEvents, MAX_EPOLL_EVENTS, -1);
 		if (fds < 0)
 		{
             PC_ERROR_LOG("epoll_wait = %d error! errno = %d. continue.", fds, PCGetLastError());
-            PCSleepMsec(PER_GET_POLLER_QUEUE_WAIT_TIME);
+            PCSleepMsec(100);
             continue;
 		}
 
@@ -136,20 +136,20 @@ void CPCTcpPollerThread::Svc()
 			{
 				if(eventHandle->m_bListenSocket)
 				{
-                    eventHandle->DoAccept(true, "", 0);
+					eventHandle->ProcessAccept();
 				}
 				else
 				{
-                    eventHandle->DoRecved(true, "", 0);
+					eventHandle->ProcessRecv(0);
 				}
 			}
 			if (m_epollEvents[i].events & EPOLLOUT)
 			{
-                eventHandle->DoSendded(true, 0);
+				eventHandle->ProcessSend( 0);
 			}
 			if (m_epollEvents[i].events & EPOLLERR)
 			{
-                eventHandle->DoClose();
+				eventHandle->ProcessClose();
 			}
 		}
 	}

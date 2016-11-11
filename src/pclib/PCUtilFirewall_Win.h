@@ -20,7 +20,7 @@ PCLIB_NAMESPACE_BEG
 #else 
 	#define AddApplicationToExceptionList AddApplicationToExceptionListA 
 	#define RemoveApplicationFromExceptionList RemoveApplicationFromExceptionListA 
-	#define CanLaunchMultiplayerGame CanLaunchMultiplayerGameW 
+	#define CanLaunchMultiplayerGame CanLaunchMultiplayerGameA 
 #endif 
 
 #endif	// !defined(_WIN32)

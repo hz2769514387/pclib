@@ -36,13 +36,16 @@ public:
 	void OnAccepted(){
 		PostRecv();
 	}
-	void OnSendded( unsigned long dwSendedLen){
-		PC_TRACE_LOG("send(%lu) bytes", dwSendedLen); 
-		PostRecv();
+	void OnSendded(){
+		PC_TRACE_LOG("send ok");
+		Cleanup(true);
+		PostAccept(m_HListen.m_hTcpSocket);
 	}
 	void OnRecved( unsigned long dwRecvedLen){
-		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, m_szIOBuf);
-		PostSend(m_szIOBuf, dwRecvedLen);
+		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, m_RecvBuffer.C_Str());
+		m_SendBuffer.Reset(0);
+		m_SendBuffer.Append(m_RecvBuffer.C_Str());
+		PostSend();
 	}
 	void OnClosed(){
 		PC_TRACE_LOG("closed."); 
@@ -55,31 +58,37 @@ class CClientProcessHandle : public CPCTcpSockHandle
 public:
 
 	//完成请求后回调函数
-	void DoConnected(bool bSucceed){
+	void OnConnected(){
 		PC_TRACE_LOG("connected"); 
-		PostSend("hello,world!", 12);
+
+		string httpRes = "HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: 1048576\r\n\r\n123456";
+		m_SendBuffer.Reset(0);
+		m_SendBuffer.Append(httpRes.c_str());
+		PostSend();
 	}
-	void DoSendded(bool bSucceed, unsigned long dwSendedLen){
-		PC_TRACE_LOG("send(%lu) bytes", dwSendedLen);
+	void OnSendded(){
+		PC_TRACE_LOG("send ok");
 		PostRecv();
 	}
-	void DoRecved(bool bSucceed, unsigned long dwRecvedLen){
-		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, m_szIOBuf);
-		Cleanup();
+	void OnRecved(unsigned long dwRecvedLen){
+		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, m_RecvBuffer.C_Str());
+		Cleanup(true);
 	}
 };
 
 int main(int argc, char* argv[])
 {
-    CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "/home/hz");
+    CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeHour, true, "/home/hz");
+
 	
+
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
 
-#ifndef TXXX
+#ifdef TXXX
 		//客户端
 		CClientProcessHandle hClient;
 		hClient.Create(-1);
-		hClient.PostConnect("127.0.0.1", 3333);
+		hClient.PostConnect("192.168.190.129", 3333);
 #else
 		//服务器
 		CPCTcpSockHandle hListen;
@@ -87,9 +96,9 @@ int main(int argc, char* argv[])
 		CSevEchoProcessHandle hProcess1(hListen);
 		hProcess1.PostAccept(hListen.m_hTcpSocket);
 #endif
-
+		
 	while (1){ PCSleepMsec(1000); }
-
+	
 	
 
 	//TIME

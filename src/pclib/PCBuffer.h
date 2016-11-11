@@ -81,6 +81,19 @@ public:
 		nBufSize = m_Size;
 		return &*m_Buffer.begin();
 	}
+	char* UnsafeBuffer(size_t &nBufSize)
+	{
+		nBufSize = m_Size;
+		return &*m_Buffer.begin();
+	}
+	char* UnsafeBuffer()
+	{
+		return &*m_Buffer.begin();
+	}
+	size_t Size() const
+	{
+		return m_Size;
+	}
 
 	//获取buffer保存的以'\0'结束的字符串
 	const char* C_Str()
