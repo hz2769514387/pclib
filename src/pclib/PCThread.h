@@ -33,10 +33,12 @@ public:
 	void SetStackSize(unsigned int nStackSize);						//设置线程栈大小，必须在StartThread之前调用才有效，用户一般无需关心
 	void SetRunning(bool bRunning)	{ m_bRunning = bRunning; }		//m_bRunning设置，用户一般无需关心
 	void SetExited(bool bExited)	{ m_bThreadExited = bExited; }	//m_bThreadExited设置，用户一般无需关心
-	
+    int  GetThreadId() const        { return m_threadId; }          //获取线程ID，只有线程创建成功并且运行起来后才可以调用
+    int  SetThreadId(int threadId)  { m_threadId = threadId; }      //不要调用这个函数！
 protected:
 	
 	unsigned int		m_nStackSize;		//线程栈大小
+    int                 m_threadId;         //线程ID
 	CPCRecursiveLock	m_Mutex;			//给子类提供的锁
 
 	bool				m_bRunning;			//线程是否正在运行，此变量一般用作循环变量和主线程判断子线程是否启动

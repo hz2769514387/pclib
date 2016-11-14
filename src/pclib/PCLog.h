@@ -39,7 +39,7 @@ public:
 	//日志生成模式，按天生成或按小时生成
 	enum ePCLogGenMode
 	{
-		eGenModeHour = 1,
+		eGenModeHour = 0,
 		eGenModeDay
 	};
 

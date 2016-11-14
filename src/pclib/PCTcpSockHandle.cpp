@@ -9,41 +9,46 @@
 PCLIB_NAMESPACE_BEG
 //////////////////////////////////////////////////////////////////////////
 
-CPCTcpSockHandle::CPCTcpSockHandle() :
-	m_hTcpSocket(PC_INVALID_SOCKET),
-	m_bListenSocket(false),
+CPCTcpSockHandle::CPCTcpSockHandle(eSockType eType) :
+	m_SocketFd(PC_INVALID_SOCKET),
+	m_ListenSocketFd(PC_INVALID_SOCKET),
+	m_SocketType(eType),
 	m_SendBuffer(PER_SOCK_REQBUF_SIZE),
 	m_RecvBuffer(PER_SOCK_REQBUF_SIZE),
 	m_ActualSendedLen(0)
 {
+	PC_ASSERT((eType == eSockType::eAcceptType || eType == eSockType::eConnectType || eType == eSockType::eListenType), "eType (%d) error!", eType);
+	Cleanup();
+	CPCTcpPoller::GetInstance()->BindTcpSockHandle(this);
 #if defined (_WIN32)
 #else
     m_epollFd = CPCTcpPoller::GetInstance()->GetEpollFd();
     m_eventFd = CPCTcpPoller::GetInstance()->GetEventFd();
 #endif
-	Cleanup();
+	
 }
 
 CPCTcpSockHandle::~CPCTcpSockHandle()
 {
 	Cleanup();
+	CPCTcpPoller::GetInstance()->UnBindTcpSockHandle(this);
 }
 
 bool CPCTcpSockHandle::Create(int nPort, bool bBlock)
 {
 	//创建套接字
 	Cleanup();
-	m_hTcpSocket = PCCreateTcpSocket(nPort, bBlock);
-	if (PC_INVALID_SOCKET == m_hTcpSocket)
+	m_SocketFd = PCCreateTcpSocket(nPort, bBlock);
+	if (PC_INVALID_SOCKET == m_SocketFd)
 	{
 		return false;
 	}
 
 #if defined (_WIN32)
 	//绑定完成端口
-	if (!CPCTcpPoller::GetInstance()->AssociateSocketWithIOCP(m_hTcpSocket, (ULONG_PTR)this))
+	if (!CPCTcpPoller::GetInstance()->AssociateSocketWithIOCP(m_SocketFd, (ULONG_PTR)this))
 	{
-		PCCloseSocket(m_hTcpSocket);
+		PCCloseSocket(m_SocketFd);
 		return false;
     }
 #endif
@@ -51,16 +56,15 @@ bool CPCTcpSockHandle::Create(int nPort, bool bBlock)
 	//如果是服务端套接字还要开始监听
 	if (nPort >= 0 && nPort <= 65535)
 	{
-		if (listen(m_hTcpSocket, SOMAXCONN) != 0)
+		if (listen(m_SocketFd, SOMAXCONN) != 0)
 		{
-			PC_ERROR_LOG("listen(m_hTcpSocket=%d) fail! errno=%d", m_hTcpSocket, PCGetLastError(true));
-			PCCloseSocket(m_hTcpSocket);
+			PC_ERROR_LOG("listen(m_SocketFd=%d) fail! errno=%d", m_SocketFd, PCGetLastError(true));
+			PCCloseSocket(m_SocketFd);
 			return false;
 		}
-		m_bListenSocket = true;
 
 #if defined (_WIN32)
-		m_ConnOpt = csEnumOpt::cseAccept;
+		m_Opt = eOpt::eAccept;
 #else
 
 #endif
@@ -70,24 +74,25 @@ bool CPCTcpSockHandle::Create(int nPort, bool bBlock)
 
 void CPCTcpSockHandle::Cleanup(bool bGracefully)
 {
-	if (bGracefully)
+	if (m_SocketFd != PC_INVALID_SOCKET)
 	{
-		PCShutdownSocket(m_hTcpSocket);
-		m_hTcpSocket = PC_INVALID_SOCKET;
+		if (bGracefully)
+		{
+			PCShutdownSocket(m_SocketFd);
+			m_SocketFd = PC_INVALID_SOCKET;
+		}
+		else
+		{
+			PCCloseSocket(m_SocketFd);
+		}
 	}
-	else
-	{
-		PCCloseSocket(m_hTcpSocket);
-	}
-	m_bListenSocket = false;
 	memset(m_pszRemoteIP, 0, sizeof(m_pszRemoteIP));
-
-	m_RecvBuffer.Reset(0);
-	m_RecvBuffer.Reset(0);
-
 	m_ActualSendedLen = 0;
+	m_RecvBuffer.Reset(0);
+	m_RecvBuffer.Reset(0);
+
 #if defined (_WIN32)
-	m_ConnOpt = csEnumOpt::cseUnconnect;
+	m_Opt = eOpt::eUnconnect;
 	ZeroMemory(&m_ioCtx.m_olOriginal, sizeof(m_ioCtx.m_olOriginal));
 #else
 	
@@ -96,9 +101,9 @@ void CPCTcpSockHandle::Cleanup(bool bGracefully)
 
 bool CPCTcpSockHandle::PostConnect(const char *pszHostAddress, int nPort)
 {
-	if (PC_INVALID_SOCKET == m_hTcpSocket || pszHostAddress == NULL || nPort < 0 || nPort > 65535)
+	if (PC_INVALID_SOCKET == m_SocketFd || pszHostAddress == NULL || nPort < 0 || nPort > 65535)
 	{
-		PC_ERROR_LOG("m_hTcpSocket == PC_INVALID_SOCKET || pszHostAddress = %s || nPort = %d ", pszHostAddress, nPort);
+		PC_ERROR_LOG("m_SocketFd == PC_INVALID_SOCKET || pszHostAddress = %s || nPort = %d ", pszHostAddress, nPort);
 		return false;
 	}
 
@@ -114,9 +119,9 @@ bool CPCTcpSockHandle::PostConnect(const char *pszHostAddress, int nPort)
 
 	//连接
 	ZeroMemory(&m_ioCtx.m_olOriginal, sizeof(m_ioCtx.m_olOriginal));
-	m_ConnOpt = csEnumOpt::cseConnect;
+	m_Opt = eOpt::eConnect;
 
-	BOOL rc = CPCLib::m_lpfnConnectEx(m_hTcpSocket, (const struct sockaddr FAR *)&RemoteAddr, sizeof(RemoteAddr), NULL, 0, NULL, &(m_ioCtx.m_olOriginal));
+	BOOL rc = CPCLib::m_lpfnConnectEx(m_SocketFd, (const struct sockaddr FAR *)&RemoteAddr, sizeof(RemoteAddr), NULL, 0, NULL, &(m_ioCtx.m_olOriginal));
 	if (!rc)
 	{
 		int nErrNo = WSAGetLastError();
@@ -134,7 +139,7 @@ bool CPCTcpSockHandle::PostConnect(const char *pszHostAddress, int nPort)
 
 bool CPCTcpSockHandle::PostSend()
 {
-	if (PC_INVALID_SOCKET == m_hTcpSocket)
+	if (PC_INVALID_SOCKET == m_SocketFd)
 	{
 		PC_ERROR_LOG("m_hTcpSocket == PC_INVALID_SOCKET！");
 		return false;
@@ -142,12 +147,12 @@ bool CPCTcpSockHandle::PostSend()
 
 #if defined (_WIN32)
 	ZeroMemory(&m_ioCtx.m_olOriginal, sizeof(m_ioCtx.m_olOriginal));
-	m_ConnOpt = csEnumOpt::cseWrite;
+	m_Opt = eOpt::eWrite;
 	m_wsBufPointer.buf = m_SendBuffer.UnsafeBuffer() + m_ActualSendedLen;
 	m_wsBufPointer.len = static_cast<unsigned long>(m_SendBuffer.Size() - m_ActualSendedLen);
 
 	DWORD dwSendBytes;
-	int rc = WSASend(m_hTcpSocket, &(m_wsBufPointer), 1, &dwSendBytes, 0, &(m_ioCtx.m_olOriginal), NULL);
+	int rc = WSASend(m_SocketFd, &(m_wsBufPointer), 1, &dwSendBytes, 0, &(m_ioCtx.m_olOriginal), NULL);
 	if (rc != 0)
 	{
 		int nErrNo = WSAGetLastError();
@@ -166,7 +171,7 @@ bool CPCTcpSockHandle::PostSend()
 
 bool CPCTcpSockHandle::PostRecv()
 {
-	if (PC_INVALID_SOCKET == m_hTcpSocket)
+	if (PC_INVALID_SOCKET == m_SocketFd)
 	{
 		PC_ERROR_LOG("m_hTcpSocket == PC_INVALID_SOCKET！");
 		return false;
@@ -174,7 +179,7 @@ bool CPCTcpSockHandle::PostRecv()
 
 #if defined (_WIN32)
 	ZeroMemory(&m_ioCtx.m_olOriginal, sizeof(m_ioCtx.m_olOriginal));
-	m_ConnOpt = csEnumOpt::cseRead;
+	m_Opt = eOpt::eRead;
 	m_RecvBuffer.Reset(0);
 	m_wsBufPointer.buf = m_RecvBuffer.UnsafeBuffer();
 	m_wsBufPointer.len = PER_SOCK_REQBUF_SIZE;
@@ -182,7 +187,7 @@ bool CPCTcpSockHandle::PostRecv()
 	DWORD dwRecvedSize = 0;
 	DWORD dwFlags = 0;
 
-	int rc = WSARecv(m_hTcpSocket,
+	int rc = WSARecv(m_SocketFd,
 		&(m_wsBufPointer),
 		1,
 		&dwRecvedSize,
@@ -211,33 +216,35 @@ bool CPCTcpSockHandle::PostAccept(PC_SOCKET sListen)
 		PC_ERROR_LOG("sListen == PC_INVALID_SOCKET！");
 		return false;
 	}
+	m_ListenSocketFd = sListen;
+
 #if defined (_WIN32)
 
 	//服务端给下一次accept的客户预先创建socket
 	Cleanup();
-	m_hTcpSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (m_hTcpSocket == PC_INVALID_SOCKET)
+	m_SocketFd = socket(AF_INET, SOCK_STREAM, 0);
+	if (m_SocketFd == PC_INVALID_SOCKET)
 	{
 		PC_ERROR_LOG("socket fail ！WSAGetLastError() = %ld", WSAGetLastError());
 		return false;
 	}
 
 	// 设置套接字为非阻塞模式
-	if (PCSetNonBlocking(m_hTcpSocket) != 0)
+	if (PCSetNonBlocking(m_SocketFd) != 0)
 	{
-		PCCloseSocket(m_hTcpSocket);
+		PCCloseSocket(m_SocketFd);
 		return false;
 	}
 
 	ZeroMemory(&m_ioCtx.m_olOriginal, sizeof(m_ioCtx.m_olOriginal));
-	m_ConnOpt = csEnumOpt::cseAccept;
+	m_Opt = eOpt::eAccept;
 	m_RecvBuffer.Reset(0);
 	m_ioCtx.m_pOwner = this;
 
 	DWORD dwRecvedSize = 0;
 	BOOL rc = CPCLib::m_lpfnAcceptEx(
 		sListen,
-		m_hTcpSocket,
+		m_SocketFd,
 		m_RecvBuffer.UnsafeBuffer(),
 		0,
 		sizeof(sockaddr_in) + 16,
@@ -251,7 +258,7 @@ bool CPCTcpSockHandle::PostAccept(PC_SOCKET sListen)
 		if (nErrNo != WSA_IO_PENDING)
 		{
 			PC_ERROR_LOG("AcceptEx fail！ nErrNo = %d", nErrNo);
-			PCCloseSocket(m_hTcpSocket);
+			PCCloseSocket(m_SocketFd);
 			return false;
 		}
 	}
@@ -268,14 +275,14 @@ void CPCTcpSockHandle::ProcessAccept()
 
 #if defined (_WIN32)
 	//状态校验
-	if (m_ConnOpt != csEnumOpt::cseAccept)
+	if (m_Opt != eOpt::eAccept)
 	{
-		PC_ERROR_LOG("opt code :%d err! correct opt code is : %d", m_ConnOpt, csEnumOpt::cseAccept);
+		PC_ERROR_LOG("opt code :%d err! correct opt code is : %d", m_Opt, eOpt::eAccept);
 		return ProcessClose();
 	}
 
 	//将SOCKET与完成端口进行关联
-	if (!CPCTcpPoller::GetInstance()->AssociateSocketWithIOCP(m_hTcpSocket, (ULONG_PTR)this))
+	if (!CPCTcpPoller::GetInstance()->AssociateSocketWithIOCP(m_SocketFd, (ULONG_PTR)this))
 	{
 		return ProcessClose();
 	}
@@ -306,9 +313,9 @@ void CPCTcpSockHandle::ProcessConnect()
 
 #if defined (_WIN32)
 	//状态校验
-	if (m_ConnOpt != csEnumOpt::cseConnect)
+	if (m_Opt != eOpt::eConnect)
 	{
-		PC_ERROR_LOG("opt code :%d err! correct opt code is : %d", m_ConnOpt, csEnumOpt::cseConnect);
+		PC_ERROR_LOG("opt code :%d err! correct opt code is : %d", m_Opt, eOpt::eConnect);
 		return ProcessClose();
 	}
 	OnConnected();
@@ -323,9 +330,9 @@ void CPCTcpSockHandle::ProcessSend(unsigned long dwSendedLen)
 
 #if defined (_WIN32)
 	//状态校验
-	if (m_ConnOpt != csEnumOpt::cseWrite)
+	if (m_Opt != eOpt::eWrite)
 	{
-		PC_ERROR_LOG("opt code :%d err! correct opt code is : %d", m_ConnOpt, csEnumOpt::cseWrite);
+		PC_ERROR_LOG("opt code :%d err! correct opt code is : %d", m_Opt, eOpt::eWrite);
 		return ProcessClose();
 	}
 
@@ -356,9 +363,9 @@ void CPCTcpSockHandle::ProcessRecv(unsigned long dwRecvedLen)
 
 #if defined (_WIN32)
 	//状态校验
-	if (m_ConnOpt != csEnumOpt::cseRead)
+	if (m_Opt != eOpt::eRead)
 	{
-		PC_ERROR_LOG("opt code :%d err! correct opt code is : %d", m_ConnOpt, csEnumOpt::cseRead);
+		PC_ERROR_LOG("opt code :%d err! correct opt code is : %d", m_Opt, eOpt::eRead);
 		return ProcessClose();
 	}
 	//由于接收时使用了unsafebuffer，此时需要把长度也补充指定
@@ -373,6 +380,15 @@ void CPCTcpSockHandle::ProcessClose()
 {
 	CPCGuard guard(m_Mutex);
 
+#if defined (_WIN32)
+	if (m_SocketType == eSockType::eAcceptType)
+	{
+		if (false == PostAccept(m_ListenSocketFd))
+		{
+			PC_WARN_LOG("warning! closed eAcceptType PostAccept fail.");
+		}
+	}
+#endif
 	Cleanup();
 	OnClosed();
 }

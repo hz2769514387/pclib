@@ -44,16 +44,26 @@ typedef struct _IOCP_IO_CTX
 class CPCTcpSockHandle : CPCNoCopyable
 {
 public:
-	CPCTcpSockHandle();
+	//连接类型
+	enum eSockType
+	{
+		eListenType = 0,	//监听类型（一般用于服务端监听套接字）
+		eAcceptType,		//接收连接类型（一般用于服务端处理套接字）
+		eConnectType		//主动连接类型（一般用于客户端）
+	};
+	CPCTcpSockHandle(eSockType eType);
 	~CPCTcpSockHandle();
 
 	//////////////////////////////////////////////////////////////////////////////
 	// 接口函数，由用户主动调用
+	//<创建和清理函数为同步处理，不会触发虚函数通知；投递函数则可能会触发通知>
 	//////////////////////////////////////////////////////////////////////////////
+	
 	//创建函数：【主动创建服务器监听socket（nPort在（0~65535）之间，创建后自动开启监听）或客户端socket（nPort不合法）】 
 	bool Create(int nPort, bool bBlock = false);
 	//清理函数：bGracefully = true 时，优雅地关闭连接，否则为强制关闭连接。
 	void Cleanup(bool bGracefully = false);
+	
 	//投递请求，一般由用户主动调用<投递发送请求时，数据最大长度为 PER_SOCK_REQBUF_SIZE>
 	bool PostConnect(const char *pszHostAddress, int nPort);
 	bool PostSend();
@@ -80,23 +90,24 @@ public:
 
 public:
 	CPCRecursiveLock	m_Mutex;			//给子类提供的锁
-	PC_SOCKET	m_hTcpSocket;				//内部维护的一个SOCKET
-	bool		m_bListenSocket;			//SOCKET类型是否为监听类型
+	eSockType	m_SocketType;				//SOCKET类型
+	PC_SOCKET	m_SocketFd;					//内部维护的一个SOCKET
+	PC_SOCKET	m_ListenSocketFd;			//对于Accept类型的socket，内部维护监听socket的描述符
 	char		m_pszRemoteIP[MAX_IP_LEN];	//对方的IP地址(仅针对accept的socket)
 	CPCBuffer	m_SendBuffer;				//单次发送缓冲区
 	CPCBuffer	m_RecvBuffer;				//单次接收缓冲区
 
 #if defined (_WIN32)
 	//操作码
-	enum csEnumOpt
+	enum eOpt
 	{
-		cseUnconnect = 0,
-		cseConnect,
-		cseAccept,
-		cseRead,
-		cseWrite
+		eUnconnect = 0,
+		eConnect,
+		eAccept,
+		eRead,
+		eWrite
 	};
-	csEnumOpt		m_ConnOpt;				//操作码
+	eOpt			m_Opt;					//操作码
 	IOCP_IO_CTX		m_ioCtx;				//原始重叠结构
 	WSABUF			m_wsBufPointer;			//投递请求BUF指针
 #else
@@ -108,7 +119,6 @@ public:
 private:
 	unsigned int	m_ActualSendedLen;		//实际发送的长度
 };
-
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_END

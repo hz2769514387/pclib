@@ -4,6 +4,7 @@
 # pragma once
 #endif
 #include "PCThread.h"
+#include "PCTcpSockHandle.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -42,15 +43,36 @@ public:
 *@brief	IO多路复用单例类
 *
 */
-class CPCTcpPoller: CPCNoCopyable
+class CPCTcpPoller  : public CPCThread
 {
 public:
 	//获取单例
 	static CPCTcpPoller* GetInstance(){static CPCTcpPoller m_me;return &m_me;}
 
+	//将CPCTcpSockHandle绑定或解绑到CPCTcpPoller
+	void BindTcpSockHandle(CPCTcpSockHandle* hTcpSockHandle)
+	{
+		CPCGuard guard(m_Mutex);
+		if (hTcpSockHandle)
+		{
+			m_TcpSockHandleList.insert(hTcpSockHandle);
+		}
+	}
+	void UnBindTcpSockHandle(CPCTcpSockHandle* hTcpSockHandle)
+	{
+		CPCGuard guard(m_Mutex);
+		if (hTcpSockHandle)
+		{
+			m_TcpSockHandleList.erase(hTcpSockHandle);
+		}
+	}
+
 	//启动和停止
 	bool StartTcpPoller();
 	void StopTcpPoller();
+
+	//运行
+	void Svc();
 
 #if defined (_WIN32)
 	//将SOCKET句柄绑定到完成端口中 
@@ -81,11 +103,14 @@ protected:
 	CPCTcpPoller(void);
 	~CPCTcpPoller(void);
 
+	CPCRecursiveLock	m_Mutex;
+
 	// 工作线程列表
 	CPCTcpPollerThread* m_phWorkerThreadList[MAX_POLLER_THREAD_COUNT];
-	unsigned int	m_nWorkerThreadCount;
+	unsigned int		m_nWorkerThreadCount;
 
-	CPCRecursiveLock	m_Mutex;			
+	// 所有连接列表
+	std::set<CPCTcpSockHandle*>	m_TcpSockHandleList;
 
 #if defined (_WIN32)
 	// 完成端口的句柄

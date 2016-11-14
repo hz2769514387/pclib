@@ -29,8 +29,8 @@ using namespace pclib;
 class CSevEchoProcessHandle : public CPCTcpSockHandle
 {
 public:
-	CPCTcpSockHandle & m_HListen;
-	CSevEchoProcessHandle(CPCTcpSockHandle & hListen) :m_HListen(hListen){	}
+	CSevEchoProcessHandle() 
+		:CPCTcpSockHandle(eSockType::eAcceptType){}
 
 	//完成请求后回调函数
 	void OnAccepted(){
@@ -39,7 +39,7 @@ public:
 	void OnSendded(){
 		PC_TRACE_LOG("send ok");
 		Cleanup(true);
-		PostAccept(m_HListen.m_hTcpSocket);
+		PostAccept(m_ListenSocketFd);
 	}
 	void OnRecved( unsigned long dwRecvedLen){
 		PC_TRACE_LOG("recv(%lu) bytes:%s", dwRecvedLen, m_RecvBuffer.C_Str());
@@ -49,14 +49,14 @@ public:
 	}
 	void OnClosed(){
 		PC_TRACE_LOG("closed."); 
-		PostAccept(m_HListen.m_hTcpSocket);
 	}
 };
 
 class CClientProcessHandle : public CPCTcpSockHandle
 {
 public:
-
+	CClientProcessHandle()
+		:CPCTcpSockHandle(eSockType::eConnectType){}
 	//完成请求后回调函数
 	void OnConnected(){
 		PC_TRACE_LOG("connected"); 
@@ -78,9 +78,8 @@ public:
 
 int main(int argc, char* argv[])
 {
-    CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeHour, true, "/home/hz");
+    CPCLog::GetRoot()->S  etLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "/home/hz");
 
-	
 
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
 
@@ -91,14 +90,14 @@ int main(int argc, char* argv[])
 		hClient.PostConnect("192.168.190.129", 3333);
 #else
 		//服务器
-		CPCTcpSockHandle hListen;
+		CPCTcpSockHandle hListen(CPCTcpSockHandle::eSockType::eListenType);
 		hListen.Create(3333);
-		CSevEchoProcessHandle hProcess1(hListen);
-		hProcess1.PostAccept(hListen.m_hTcpSocket);
+		CSevEchoProcessHandle hProcess1;
+		hProcess1.PostAccept(hListen.m_SocketFd);
 #endif
 		
-	while (1){ PCSleepMsec(1000); }
-	
+    //while (1){ PCSleepMsec(1000); }
+    return 0;
 	
 
 	//TIME

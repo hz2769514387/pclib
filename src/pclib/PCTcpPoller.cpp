@@ -1,7 +1,6 @@
 #include "PC_Lib.h"
 #include "PCLog.h"
 #include "PCUtilSystem.h"
-#include "PCTcpSockHandle.h"
 #include "PCTcpPoller.h" 
 
 //////////////////////////////////////////////////////////////////////////
@@ -22,7 +21,7 @@ bool CPCTcpPollerThread::Init()
 
     //将eventfd放入epoll队列
     struct epoll_event read_event;
-    read_event.events = EPOLLHUP | EPOLLERR | EPOLLIN;
+    read_event.events = EPOLLHUP | EPOLLERR | EPOLLIN | EPOLLOUT;
     read_event.data.fd = m_eventFd;
     int nRet = epoll_ctl(m_epollFd, EPOLL_CTL_ADD, m_eventFd, &read_event);
     if (nRet == -1)
@@ -57,9 +56,9 @@ void CPCTcpPollerThread::Svc()
 				break;
 			}
 
-			if ((0 == dwBytesXfered) && (lpIOContext != NULL) && (pHandle != NULL) && (pHandle->m_hTcpSocket != PC_INVALID_SOCKET))
+			if ((0 == dwBytesXfered) && (lpIOContext != NULL) && (pHandle != NULL) && (pHandle->m_SocketFd != PC_INVALID_SOCKET))
 			{
-				if (pHandle->m_bListenSocket)
+                if (pHandle->m_SocketType == CPCTcpSockHandle::eSockType::eListenType)
 				{
 					//监听Socket取队列事件出现异常，由于监听Socket上只可能出现ACCEPT事件，此时直接关掉到来的连接
 					lpIOContext->m_pOwner->ProcessClose();
@@ -78,16 +77,16 @@ void CPCTcpPollerThread::Svc()
 		}
 
 		PC_ASSERT(pHandle, "exception!pHandle == NULL  ");
-		PC_ASSERT((pHandle->m_hTcpSocket != PC_INVALID_SOCKET), "exception!pHandle->m_hTcpSocket == PC_INVALID_SOCKET");
+		PC_ASSERT((pHandle->m_SocketFd != PC_INVALID_SOCKET), "exception!pHandle->m_SocketFd == PC_INVALID_SOCKET");
 		PC_ASSERT(lpIOContext, "exception!lpIOContext == NULL");
 
 		//正常处理
-		switch (pHandle->m_ConnOpt)
+		switch (pHandle->m_Opt)
 		{
-		case CPCTcpSockHandle::csEnumOpt::cseConnect:
+		case CPCTcpSockHandle::eOpt::eConnect:
 			pHandle->ProcessConnect();
 			break;
-		case CPCTcpSockHandle::csEnumOpt::cseRead:
+		case CPCTcpSockHandle::eOpt::eRead:
 			if (0 == dwBytesXfered)
 			{
 				//连接被对方断开
@@ -98,10 +97,10 @@ void CPCTcpPollerThread::Svc()
 				pHandle->ProcessRecv(dwBytesXfered);
 			}
 			break;
-		case CPCTcpSockHandle::csEnumOpt::cseWrite:
+		case CPCTcpSockHandle::eOpt::eWrite:
 			pHandle->ProcessSend( dwBytesXfered);
 			break;
-		case CPCTcpSockHandle::csEnumOpt::cseAccept:
+		case CPCTcpSockHandle::eOpt::eAccept:
 			if (dwBytesXfered > 0)
 			{
 				PC_WARN_LOG("cseAccept warning: %d bytes data is NOT NEED.", dwBytesXfered);
@@ -109,49 +108,76 @@ void CPCTcpPollerThread::Svc()
 			lpIOContext->m_pOwner->ProcessAccept();
 			break;
 		default:
-			PC_ERROR_LOG("Recved unknown op type: %d", pHandle->m_ConnOpt);
+			PC_ERROR_LOG("Recved unknown op type: %d", pHandle->m_Opt);
 			break;
 		}
 	}
 #else
 	while (m_bRunning)
 	{
-		int fds = epoll_wait(m_epollFd, m_epollEvents, MAX_EPOLL_EVENTS, -1);
+        PC_TRACE_LOG(" CPCTcpPollerThread service...");
+        int fds = epoll_wait(m_epollFd, m_epollEvents, MAX_EPOLL_EVENTS, -1);
 		if (fds < 0)
 		{
             PC_ERROR_LOG("epoll_wait = %d error! errno = %d. continue.", fds, PCGetLastError());
-            PCSleepMsec(100);
-            continue;
+            break;
 		}
-
+        bool bNeedExit = false;
 		for (int i = 0; i < fds; i++)
 		{
-			CPCTcpSockHandle *	eventHandle = (CPCTcpSockHandle *)m_epollEvents[i].data.ptr;
-			if(eventHandle == NULL)
-			{
-				PC_ERROR_LOG("eventHandle = NULL, continue.");
-				continue;
-			}
-			if (m_epollEvents[i].events & EPOLLIN)
-			{
-				if(eventHandle->m_bListenSocket)
-				{
-					eventHandle->ProcessAccept();
-				}
-				else
-				{
-					eventHandle->ProcessRecv(0);
-				}
-			}
-			if (m_epollEvents[i].events & EPOLLOUT)
-			{
-				eventHandle->ProcessSend( 0);
-			}
-			if (m_epollEvents[i].events & EPOLLERR)
-			{
-				eventHandle->ProcessClose();
-			}
+            if(m_epollEvents[i].data.fd == m_eventFd)
+            {
+                //处理eventfd事件，可能是epoll_ctl请求或退出请求
+                CPCTcpSockHandle *	eventHandle = NULL;
+                ssize_t readLen = read(m_eventFd, &eventHandle, sizeof(eventHandle));
+                if(readLen!=sizeof(eventHandle))
+                {
+                    PC_ERROR_LOG("read m_eventFd fail.readLen=%d",readLen);
+                    continue;
+                }
+                if(0 == eventHandle)
+                {
+                    PC_TRACE_LOG("read m_eventFd data 0, need exit epoll_wait.");
+                    bNeedExit = true;
+                    continue;
+                }
+            }
+            else
+            {
+                //处理实际的发送接收事件
+                CPCTcpSockHandle *	eventHandle = (CPCTcpSockHandle *)m_epollEvents[i].data.ptr;
+                if(eventHandle == NULL)
+                {
+                    PC_ERROR_LOG("eventHandle = NULL, continue.");
+                    continue;
+                }
+                if (m_epollEvents[i].events & EPOLLIN)
+                {
+                    if(eventHandle->m_SocketType == CPCTcpSockHandle::eSockType::eListenType)
+                    {
+                        eventHandle->ProcessAccept();
+                    }
+                    else
+                    {
+                        eventHandle->ProcessRecv(0);
+                    }
+                }
+                if (m_epollEvents[i].events & EPOLLOUT)
+                {
+                    eventHandle->ProcessSend( 0);
+                }
+                if (m_epollEvents[i].events & EPOLLERR)
+                {
+                    eventHandle->ProcessClose();
+                }
+            }
 		}
+
+        //等待处理完所有事情在判断是否要退出
+        if(bNeedExit)
+        {
+            break;
+        }
 	}
 #endif
 }
@@ -231,6 +257,11 @@ bool CPCTcpPoller::StartTcpPoller()
 		}
 	}
 
+	//建立管理连接线程
+	if (false == this->StartThread(5000))
+	{
+		return false;
+	}
 	PC_TRACE_LOG(" Create CPCTcpPollerThread = %d StartTcpPoller ok.", nPollerThreadCount);
 	return true;
 }
@@ -244,16 +275,17 @@ void CPCTcpPoller::StopTcpPoller()
 		m_hCompletionPort = NULL;
 	}
 #else
-	if (m_epollFd > 0)
-	{
-		close(m_epollFd);
-		m_epollFd = -1;
-	}
-	if (m_eventFd != -1)
-	{
-		close(m_eventFd);
-		m_eventFd = -1;
-	}
+    //发送停止epoll_wait的请求
+    int64_t exitCode = 0;
+    ssize_t exitByteLen = write(m_eventFd, &exitCode, sizeof(int64_t));
+    if(exitByteLen != sizeof(int64_t))
+    {
+        PC_WARN_LOG(" write exit code fail! exitByteLen = %d", exitByteLen);
+    }
+    else
+    {
+        PC_TRACE_LOG(" write exit code succ! exitByteLen = %d", exitByteLen);
+    }
 #endif
 
 	//退出线程
@@ -262,7 +294,32 @@ void CPCTcpPoller::StopTcpPoller()
 		m_phWorkerThreadList[i]->StopThread(5000);
 		delete m_phWorkerThreadList[i];
 	}
+
+	this->StopThread(5000);
+
+#if defined (_WIN32)
+#else
+    if (m_epollFd > 0)
+    {
+        close(m_epollFd);
+        m_epollFd = -1;
+    }
+    if (m_eventFd != -1)
+    {
+        close(m_eventFd);
+        m_eventFd = -1;
+    }
+#endif
 	PC_TRACE_LOG(" StopTcpPoller all ok.");
+}
+
+void CPCTcpPoller::Svc()
+{
+	while (m_bRunning)
+	{
+		PC_TRACE_LOG(" CPCTcpPoller service...");
+		PCSleepMsec(800);
+	}
 }
 
 

@@ -14,6 +14,7 @@ CPCThread::CPCThread()
 	, m_bRunning(false)
     , m_bThreadExited(false)
 	, m_nStackSize(0)
+    , m_threadId(0)
 {
 }
 
@@ -39,11 +40,12 @@ extern "C" {
 	#else
 	void*	PCThreadStartAddr(void * obj)
 	#endif
-	{
+    {
 		CPCThread* pThrBase = static_cast<CPCThread*>(obj);
 		PC_ASSERT(pThrBase != NULL, "static_cast<CPCThreadBase*>(obj) = NULL£¡");
 
 		PC_TRACE_LOG("THREAD PCThreadStartAddr START!");
+        pThrBase->SetThreadId( static_cast<int> ( PCGetCurrentThreadID() ) );
 		pThrBase->SetRunning(true);
 		pThrBase->SetExited(false);
 		pThrBase->Svc();
@@ -141,7 +143,7 @@ void	CPCThread::StopThread(int nTimeoutMs)
 	{
         if (tvStart.IsTimeOut(nTimeoutMs))
 		{
-			PC_ERROR_LOG("thread stop timeout!( %d ms)", nTimeoutMs);
+            PC_ERROR_LOG("thread(%d) stop timeout!( %d ms)", m_threadId, nTimeoutMs);
 			return;
 		}
 		PCSleepMsec(5);
