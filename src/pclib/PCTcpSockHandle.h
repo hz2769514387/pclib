@@ -5,6 +5,7 @@
 #endif
 #include "PCLock.h"
 #include "PCBuffer.h"
+#include "PCTcpPoller.h" 
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -13,23 +14,6 @@ PCLIB_NAMESPACE_BEG
 
 #define PER_SOCK_REQBUF_SIZE	(4096)	//每个事件投递的缓存数据的大小
 #define MAX_IP_LEN				(128)	//IP地址的点分十进制字符串最大长度
-
-
-/**
-*@brief		特定平台异步模型的结构定义
-*/
-#if defined (_WIN32)
-
-//每次向IOCP投递请求的数据结构，这里主要是为了保存AcceptEx时的处理指针
-class CPCTcpSockHandle;
-typedef struct _IOCP_IO_CTX
-{
-	OVERLAPPED		m_olOriginal;	//原始重叠结构
-	CPCTcpSockHandle*	m_pOwner;	//这个投递的数据所属于的连接
-} IOCP_IO_CTX;
-
-#else
-#endif
 
 /**
 *@brief		TCP连接类，内部维护一个Socket。这个连接可以是服务端监听、处理、和客户端请求类型的连接
@@ -111,9 +95,8 @@ public:
 	IOCP_IO_CTX		m_ioCtx;				//原始重叠结构
 	WSABUF			m_wsBufPointer;			//投递请求BUF指针
 #else
-    //对于Linux，内部需要维护epoll相关的的句柄
-    int	m_epollFd;
-    int m_eventFd;
+    //对于Linux，内部需要维护CPCTcpPollerThread指针
+	CPCTcpPollerThread* m_pPollerThread ;
 #endif
 
 private:

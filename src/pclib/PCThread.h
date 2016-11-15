@@ -20,7 +20,7 @@ class CPCThread :CPCNoCopyable
 {
 public:
 	explicit CPCThread();
-	virtual ~CPCThread(){ StopThread(); }
+	virtual ~CPCThread(){ StopThread(3000); }
 	
 	//线程的创建启动和停止，只有线程完全启动或完全停止才返回。你可以设置等待多少毫秒后超时返回(<0代表一直等待)
 	bool	StartThread(int nTimeoutMs = -1);	
@@ -34,7 +34,7 @@ public:
 	void SetRunning(bool bRunning)	{ m_bRunning = bRunning; }		//m_bRunning设置，用户一般无需关心
 	void SetExited(bool bExited)	{ m_bThreadExited = bExited; }	//m_bThreadExited设置，用户一般无需关心
     int  GetThreadId() const        { return m_threadId; }          //获取线程ID，只有线程创建成功并且运行起来后才可以调用
-    int  SetThreadId(int threadId)  { m_threadId = threadId; }      //不要调用这个函数！
+	void SetThreadId(int threadId)  { m_threadId = threadId; }      //不要调用这个函数！
 protected:
 	
 	unsigned int		m_nStackSize;		//线程栈大小

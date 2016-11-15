@@ -78,11 +78,11 @@ public:
 
 int main(int argc, char* argv[])
 {
-    CPCLog::GetRoot()->S  etLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "/home/hz");
+    CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "/home/hz");
 
 
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
-
+	return 0;
 #ifdef TXXX
 		//¿Í»§¶Ë
 		CClientProcessHandle hClient;
@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
 #endif
 		
     //while (1){ PCSleepMsec(1000); }
-    return 0;
+    
 	
 
 	//TIME

@@ -4,7 +4,6 @@
 # pragma once
 #endif
 #include "PCThread.h"
-#include "PCTcpSockHandle.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -13,8 +12,25 @@ PCLIB_NAMESPACE_BEG
 //最大IO多路复用工作线程个数
 #define MAX_POLLER_THREAD_COUNT	(128)
 
-//epoll一次等待的事件数量
-#define MAX_EPOLL_EVENTS        (100)
+
+/**
+*@brief		特定平台异步模型的结构定义
+*/
+class CPCTcpSockHandle;
+#if defined (_WIN32)
+
+	//每次向IOCP投递请求的数据结构，这里主要是为了保存AcceptEx时的处理指针
+	typedef struct _IOCP_IO_CTX
+	{
+		OVERLAPPED		m_olOriginal;	//原始重叠结构
+		CPCTcpSockHandle*	m_pOwner;	//这个投递的数据所属于的连接
+	} IOCP_IO_CTX;
+
+#else
+
+	//epoll一次等待的事件数量
+	#define MAX_EPOLL_EVENTS        (100)
+#endif
 
 /**
 *@brief	IO多路复用工作者线程
@@ -25,7 +41,6 @@ class CPCTcpPollerThread : public CPCThread
 public:
 	bool Init();
 	void Svc();
-
 public:
 
 #if defined (_WIN32)
@@ -34,8 +49,17 @@ public:
 #else
 	//epoll句柄和数据
     int     m_epollFd;
-    int     m_eventFd;
+    int     m_pipeFd[2];
 	struct	epoll_event m_epollEvents[MAX_EPOLL_EVENTS];
+
+	bool	SendThreadMsg(void *Msg , size_t nMsgLen)
+	{
+		ssize_t sLen = write(m_pipeFd[1], Msg, nMsgLen);
+		if (sLen != nMsgLen)
+		{
+			PC_ERROR_LOG(" write exit code fail! exitByteLen = %d", exitByteLen);
+		}
+	}
 #endif
 };
 
@@ -94,9 +118,8 @@ public:
 	//获取完成端口句柄
 	HANDLE	GetIOCPHandle(){ return m_hCompletionPort; }
 #else
-    //获取Epoll句柄和事件通知句柄
-    int GetEpollFd(){ return m_epollFd; }
-    int GetEventFd(){ return m_eventFd; }
+    //获取CPCTcpPollerThread指针
+	CPCTcpPollerThread* GetPollerThread(){ return m_phWorkerThreadList[i]; }
 #endif
 	
 protected:
@@ -114,11 +137,10 @@ protected:
 
 #if defined (_WIN32)
 	// 完成端口的句柄
-	HANDLE		m_hCompletionPort;
+	HANDLE				m_hCompletionPort;
 #else
-    // epoll句柄和事件通知句柄
-    int     	m_epollFd;
-    int         m_eventFd;
+    // CPCTcpPollerThread指针
+	CPCTcpPollerThread*	m_pPollerThread;
 #endif
 };
 

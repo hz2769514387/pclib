@@ -22,8 +22,7 @@ CPCTcpSockHandle::CPCTcpSockHandle(eSockType eType) :
 	CPCTcpPoller::GetInstance()->BindTcpSockHandle(this);
 #if defined (_WIN32)
 #else
-    m_epollFd = CPCTcpPoller::GetInstance()->GetEpollFd();
-    m_eventFd = CPCTcpPoller::GetInstance()->GetEventFd();
+	m_pPollerThread =  CPCTcpPoller::GetInstance()->GetPollerThread();
 #endif
 	
 }
