@@ -48,7 +48,7 @@ public:
 	//清理函数：bGracefully = true 时，优雅地关闭连接，否则为强制关闭连接。
 	void Cleanup(bool bGracefully = false);
 	
-	//投递请求，一般由用户主动调用<投递发送请求时，数据最大长度为 PER_SOCK_REQBUF_SIZE>
+	//投递请求，一般由用户主动调用，投递发送请求之前，需要自行将数据放入m_SendBuffer
 	bool PostConnect(const char *pszHostAddress, int nPort);
 	bool PostSend();
 	bool PostRecv();
@@ -96,7 +96,9 @@ public:
 	WSABUF			m_wsBufPointer;			//投递请求BUF指针
 #else
     //对于Linux，内部需要维护CPCTcpPollerThread指针
-	CPCTcpPollerThread* m_pPollerThread ;
+	CPCTcpPollerThread* m_pPollerThread ;	//epoll_wait线程
+	int				m_events;				//要提交的事件，可以是以下组合：EPOLLIN EPOLLOUT EPOLLPRI EPOLLERR EPOLLHUP EPOLLET EPOLLONESHOT
+	int				m_epctlOp;				//要对事件进行的动作，可以是：EPOLL_CTL_ADD EPOLL_CTL_MOD EPOLL_CTL_DEL
 #endif
 
 private:

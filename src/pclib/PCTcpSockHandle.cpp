@@ -24,7 +24,6 @@ CPCTcpSockHandle::CPCTcpSockHandle(eSockType eType) :
 #else
 	m_pPollerThread =  CPCTcpPoller::GetInstance()->GetPollerThread();
 #endif
-	
 }
 
 CPCTcpSockHandle::~CPCTcpSockHandle()
@@ -65,16 +64,45 @@ bool CPCTcpSockHandle::Create(int nPort, bool bBlock)
 #if defined (_WIN32)
 		m_Opt = eOpt::eAccept;
 #else
-
+		//epoll_ctl请求处理
+		struct epoll_event epv ;
+		memset(&epv, 0, sizeof(epv));
+		epv.events = EPOLLIN | EPOLLOUT | EPOLLERR;
+		if (0 != epoll_ctl(m_pPollerThread->m_epollFd, EPOLL_CTL_ADD, m_SocketFd, &epv))
+		{
+			PC_WARN_LOG("Create listen epoll_ctl fail.socket fd = %d, op = %d, events = %d", m_SocketFd, m_epctlOp, m_events);
+		}
 #endif
+		PC_TRACE_LOG("listen(nPort=%d) ok!", nPort);
 	}
 	return true;
 }
 
 void CPCTcpSockHandle::Cleanup(bool bGracefully)
 {
+#if defined (_WIN32)
+	m_Opt = eOpt::eUnconnect;
+	ZeroMemory(&m_ioCtx.m_olOriginal, sizeof(m_ioCtx.m_olOriginal));
+#else
+	m_events = EPOLLIN | EPOLLOUT | EPOLLPRI | EPOLLERR | EPOLLHUP | EPOLLET;
+	m_epctlOp = EPOLL_CTL_DEL;
+#endif
+
 	if (m_SocketFd != PC_INVALID_SOCKET)
 	{
+#if defined (_WIN32)
+#else
+		//epoll_ctl请求处理
+		struct epoll_event epv ;
+		memset(&epv, 0, sizeof(epv));
+		epv.events = m_events;
+		epv.data.fd = m_SocketFd;
+		epv.data.ptr = this;
+		if (0 != epoll_ctl(m_pPollerThread->m_epollFd, m_epctlOp, m_SocketFd, &epv))
+		{
+			PC_WARN_LOG("Create listen epoll_ctl fail.socket fd = %d, op = %d, events = %d", m_SocketFd, m_epctlOp, m_events);
+		}
+#endif
 		if (bGracefully)
 		{
 			PCShutdownSocket(m_SocketFd);
@@ -89,13 +117,6 @@ void CPCTcpSockHandle::Cleanup(bool bGracefully)
 	m_ActualSendedLen = 0;
 	m_RecvBuffer.Reset(0);
 	m_RecvBuffer.Reset(0);
-
-#if defined (_WIN32)
-	m_Opt = eOpt::eUnconnect;
-	ZeroMemory(&m_ioCtx.m_olOriginal, sizeof(m_ioCtx.m_olOriginal));
-#else
-	
-#endif
 }
 
 bool CPCTcpSockHandle::PostConnect(const char *pszHostAddress, int nPort)
@@ -261,16 +282,18 @@ bool CPCTcpSockHandle::PostAccept(PC_SOCKET sListen)
 			return false;
 		}
 	}
-	return true;
 #else
-
+	CPCTcpPoller::GetInstance()->BindAcceptHandle(this);
 #endif
+	PC_TRACE_LOG("PostAccept success! m_ListenSocketFd = %d", m_ListenSocketFd);
+	return true;
 }
 
 
 void CPCTcpSockHandle::ProcessAccept()
 {
 	CPCGuard guard(m_Mutex);
+	m_RecvBuffer.Reset(0);
 
 #if defined (_WIN32)
 	//状态校验
@@ -287,23 +310,37 @@ void CPCTcpSockHandle::ProcessAccept()
 	}
 
 	//解析地址
-	SOCKADDR_IN* ClientAddr = NULL;
-	SOCKADDR_IN* LocalAddr = NULL;
+	SOCKADDR_IN* addrClient = NULL;
+	SOCKADDR_IN* addrLocal = NULL;
 	int remoteLen = sizeof(SOCKADDR_IN);
 	int localLen = sizeof(SOCKADDR_IN);
-	CPCLib::m_lpfnGetAcceptExSockAddrs((LPVOID)m_RecvBuffer.UnsafeBuffer(), 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, (LPSOCKADDR*)&LocalAddr, &localLen, (LPSOCKADDR*)&ClientAddr, &remoteLen);
-	m_RecvBuffer.Reset(0);
-	
-	if (NULL == inet_ntop(AF_INET, &ClientAddr->sin_addr, m_pszRemoteIP, sizeof(m_pszRemoteIP)))
+	CPCLib::m_lpfnGetAcceptExSockAddrs((LPVOID)m_RecvBuffer.UnsafeBuffer(), 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, (LPSOCKADDR*)&addrLocal, &localLen, (LPSOCKADDR*)&addrClient, &remoteLen);
+	if (NULL == inet_ntop(AF_INET, &addrClient->sin_addr, m_pszRemoteIP, sizeof(m_pszRemoteIP)))
 	{
 		PC_ERROR_LOG("inet_ntop fail! errno=%d", PCGetLastError(true));
 		return ProcessClose();
 	}
+	
+#else
+	sockaddr_in addrClient;
+	memset(&addrClient, 0, sizeof(sockaddr_in));
+	int addrClientlen = sizeof(addrClient);
+
+	m_SocketFd = accept(m_ListenSocketFd, (sockaddr *)&addrClient, (socklen_t*)&addrClientlen);
+	if (m_SocketFd == PC_INVALID_SOCKET)
+	{
+		PC_ERROR_LOG("accept fail! errno=%d", PCGetLastError(true));
+		return ProcessClose();
+	}
+	if (NULL == inet_ntop(AF_INET, &addrClient.sin_addr, m_pszRemoteIP, sizeof(m_pszRemoteIP)))
+	{
+		PC_ERROR_LOG("inet_ntop fail! errno=%d", PCGetLastError(true));
+		return ProcessClose();
+	}
+#endif
+
 	PC_TRACE_LOG("accept(%s) client.", m_pszRemoteIP);
 	return OnAccepted();
-#else
-
-#endif
 }
 
 void CPCTcpSockHandle::ProcessConnect()

@@ -20,7 +20,7 @@ class CPCThread :CPCNoCopyable
 {
 public:
 	explicit CPCThread();
-	virtual ~CPCThread(){ StopThread(3000); }
+	virtual ~CPCThread(){ StopThread(5000); }
 	
 	//线程的创建启动和停止，只有线程完全启动或完全停止才返回。你可以设置等待多少毫秒后超时返回(<0代表一直等待)
 	bool	StartThread(int nTimeoutMs = -1);	

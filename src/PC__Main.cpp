@@ -78,25 +78,24 @@ public:
 
 int main(int argc, char* argv[])
 {
+	
     CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "/home/hz");
-
-
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
-	return 0;
+
 #ifdef TXXX
 		//客户端
 		CClientProcessHandle hClient;
 		hClient.Create(-1);
-		hClient.PostConnect("192.168.190.129", 3333);
+		hClient.PostConnect("192.168.190.129", 22358);
 #else
 		//服务器
 		CPCTcpSockHandle hListen(CPCTcpSockHandle::eSockType::eListenType);
-		hListen.Create(3333);
+		hListen.Create(22358);
 		CSevEchoProcessHandle hProcess1;
 		hProcess1.PostAccept(hListen.m_SocketFd);
 #endif
 		
-    //while (1){ PCSleepMsec(1000); }
+    while (1){ PCSleepMsec(1000); }
     
 	
 

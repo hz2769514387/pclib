@@ -57,8 +57,10 @@ public:
 		ssize_t sLen = write(m_pipeFd[1], Msg, nMsgLen);
 		if (sLen != nMsgLen)
 		{
-			PC_ERROR_LOG(" write exit code fail! exitByteLen = %d", exitByteLen);
+			PC_ERROR_LOG(" write Msg fail! errno = %d, nMsgLen = %d, sLen = %d",  PCGetLastError(), nMsgLen, sLen);
+			return false;
 		}
+		return true;
 	}
 #endif
 };
@@ -79,7 +81,7 @@ public:
 		CPCGuard guard(m_Mutex);
 		if (hTcpSockHandle)
 		{
-			m_TcpSockHandleList.insert(hTcpSockHandle);
+			m_TcpSockHandleSet.insert(hTcpSockHandle);
 		}
 	}
 	void UnBindTcpSockHandle(CPCTcpSockHandle* hTcpSockHandle)
@@ -87,7 +89,7 @@ public:
 		CPCGuard guard(m_Mutex);
 		if (hTcpSockHandle)
 		{
-			m_TcpSockHandleList.erase(hTcpSockHandle);
+			m_TcpSockHandleSet.erase(hTcpSockHandle);
 		}
 	}
 
@@ -119,7 +121,44 @@ public:
 	HANDLE	GetIOCPHandle(){ return m_hCompletionPort; }
 #else
     //获取CPCTcpPollerThread指针
-	CPCTcpPollerThread* GetPollerThread(){ return m_phWorkerThreadList[i]; }
+	CPCTcpPollerThread* GetPollerThread(){ return m_phWorkerThreadList[0]; }
+
+	//绑定到等待连接列表
+	void BindAcceptHandle(CPCTcpSockHandle* hTcpSockHandle)
+	{
+		CPCGuard guard(m_Mutex);
+		if (hTcpSockHandle)
+		{
+			bool bRepeatHandle = false;
+			for(auto it = m_WaitAcceptList.begin(); it != m_WaitAcceptList.end(); it++)
+			{
+				if(*it == hTcpSockHandle)
+				{
+					PC_WARN_LOG("hTcpSockHandle is at m_WaitAcceptList already.ignored.");
+					bRepeatHandle = true;
+					break;
+				}
+			}
+			if(!bRepeatHandle)
+			{
+				m_WaitAcceptList.push_back(hTcpSockHandle);
+			}
+		}
+	}
+
+	//从等待连接列表中获取一个连接，失败则返回NULL
+	CPCTcpSockHandle* GetAcceptHandle()
+	{
+		CPCGuard guard(m_Mutex);
+		if(m_WaitAcceptList.empty())
+		{	
+			PC_ERROR_LOG("m_WaitAcceptSet is empty, CAN'T accept connection.");
+			return NULL;
+		}
+		CPCTcpSockHandle* idleHandle = m_WaitAcceptList.front();
+		m_WaitAcceptList.pop_front();
+		return idleHandle;
+	}
 #endif
 	
 protected:
@@ -133,14 +172,14 @@ protected:
 	unsigned int		m_nWorkerThreadCount;
 
 	// 所有连接列表
-	std::set<CPCTcpSockHandle*>	m_TcpSockHandleList;
+	std::set<CPCTcpSockHandle*>		m_TcpSockHandleSet;
 
 #if defined (_WIN32)
 	// 完成端口的句柄
 	HANDLE				m_hCompletionPort;
 #else
-    // CPCTcpPollerThread指针
-	CPCTcpPollerThread*	m_pPollerThread;
+	// 等待接收的连接列表
+	std::list<CPCTcpSockHandle*>	m_WaitAcceptList;
 #endif
 };
 
