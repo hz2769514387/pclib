@@ -76,9 +76,26 @@ public:
 	}
 };
 
+
+
+
+
+
+class D:public CPCTcpSockHandle
+{
+};
+
+class C
+{
+};
+
 int main(int argc, char* argv[])
 {
 	
+    CPCListenManager<C> t;
+    CPCListenManager<D> t1;
+
+    return 0;
     CPCLog::GetRoot()->SetLogAttr(CPCLog::eLevelTrace, CPCLog::eGenModeDay, true, "/home/hz");
 	CPCTcpPoller::GetInstance()->StartTcpPoller();
 

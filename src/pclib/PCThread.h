@@ -12,6 +12,9 @@ PCLIB_NAMESPACE_BEG
 //线程栈大小限制
 #define PC_MIN_THREAD_STACK_SIZE	(16384)
 
+//线程退出时的默认超时时间(毫秒)
+#define PC_THREAD_TIMEOUT_MS        (5000)
+
 /**
 *@brief		线程类
 *			
@@ -20,7 +23,7 @@ class CPCThread :CPCNoCopyable
 {
 public:
 	explicit CPCThread();
-	virtual ~CPCThread(){ StopThread(5000); }
+    virtual ~CPCThread(){ StopThread(PC_THREAD_TIMEOUT_MS); }
 	
 	//线程的创建启动和停止，只有线程完全启动或完全停止才返回。你可以设置等待多少毫秒后超时返回(<0代表一直等待)
 	bool	StartThread(int nTimeoutMs = -1);	

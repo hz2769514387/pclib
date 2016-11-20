@@ -26,7 +26,16 @@ PCLIB_NAMESPACE_BEG
 */
 int LIN_CodeConvert(const char *pszFormCharset, const char *pszToCharset, const char *pszInBuffer, size_t nInBufLen, char *pszOutBuffer, size_t nOutBufLen);
 
-
+/**
+*@brief		LINUX平台下的Epoll注册事件
+*@param		epollFd     [IN]	epoll 描述符
+*@param		socketFd	[IN]	要注册事件的socket 描述符
+*@param		epctlOp		[IN]	要对事件进行的动作，可以是：EPOLL_CTL_ADD EPOLL_CTL_MOD EPOLL_CTL_DEL
+*@param		events		[IN]	要提交的事件，可以是以下组合：EPOLLIN EPOLLOUT EPOLLPRI EPOLLERR EPOLLHUP EPOLLET EPOLLONESHOT
+*@param		dataPtr     [IN]	事件处理指针
+*@return    错误码，见PC_Lib.h
+*/
+int LIN_EpollEventCtl(int epollFd, int socketFd,  int epctlOp, int events, void * dataPtr);
 
 #endif
 

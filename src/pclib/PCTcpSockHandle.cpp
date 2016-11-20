@@ -18,8 +18,7 @@ CPCTcpSockHandle::CPCTcpSockHandle(eSockType eType) :
 	m_ActualSendedLen(0)
 {
 	PC_ASSERT((eType == eSockType::eAcceptType || eType == eSockType::eConnectType || eType == eSockType::eListenType), "eType (%d) error!", eType);
-	Cleanup();
-	CPCTcpPoller::GetInstance()->BindTcpSockHandle(this);
+    Cleanup();
 #if defined (_WIN32)
 #else
 	m_pPollerThread =  CPCTcpPoller::GetInstance()->GetPollerThread();
@@ -28,8 +27,7 @@ CPCTcpSockHandle::CPCTcpSockHandle(eSockType eType) :
 
 CPCTcpSockHandle::~CPCTcpSockHandle()
 {
-	Cleanup();
-	CPCTcpPoller::GetInstance()->UnBindTcpSockHandle(this);
+    Cleanup();
 }
 
 bool CPCTcpSockHandle::Create(int nPort, bool bBlock)
@@ -56,23 +54,22 @@ bool CPCTcpSockHandle::Create(int nPort, bool bBlock)
 	{
 		if (listen(m_SocketFd, SOMAXCONN) != 0)
 		{
-			PC_ERROR_LOG("listen(m_SocketFd=%d) fail! errno=%d", m_SocketFd, PCGetLastError(true));
+            PC_ERROR_LOG("listen(nPort=%d) fail! errno=%d", nPort, PCGetLastError(true));
 			PCCloseSocket(m_SocketFd);
 			return false;
-		}
+        }
 
 #if defined (_WIN32)
 		m_Opt = eOpt::eAccept;
 #else
-		//epoll_ctl请求处理
-		struct epoll_event epv ;
-		memset(&epv, 0, sizeof(epv));
-		epv.events = EPOLLIN | EPOLLOUT | EPOLLERR;
-		if (0 != epoll_ctl(m_pPollerThread->m_epollFd, EPOLL_CTL_ADD, m_SocketFd, &epv))
-		{
-			PC_WARN_LOG("Create listen epoll_ctl fail.socket fd = %d, op = %d, events = %d", m_SocketFd, m_epctlOp, m_events);
-		}
+        if(false == EpollEventCtl(EPOLLIN | EPOLLERR  , EPOLL_CTL_ADD))
+        {
+            PC_ERROR_LOG("listen(port=%d) EpollEventCtl fail!", nPort);
+            PCCloseSocket(m_SocketFd);
+            return false;
+        }
 #endif
+        m_ListenSocketFd = m_SocketFd;
 		PC_TRACE_LOG("listen(nPort=%d) ok!", nPort);
 	}
 	return true;
@@ -82,26 +79,17 @@ void CPCTcpSockHandle::Cleanup(bool bGracefully)
 {
 #if defined (_WIN32)
 	m_Opt = eOpt::eUnconnect;
-	ZeroMemory(&m_ioCtx.m_olOriginal, sizeof(m_ioCtx.m_olOriginal));
+    ZeroMemory(&m_ioCtx.m_olOriginal, sizeof(m_ioCtx.m_olOriginal));
 #else
-	m_events = EPOLLIN | EPOLLOUT | EPOLLPRI | EPOLLERR | EPOLLHUP | EPOLLET;
-	m_epctlOp = EPOLL_CTL_DEL;
+    m_events = EPOLLIN | EPOLLOUT |  EPOLLERR | EPOLLHUP | EPOLLET;
+    m_epctlOp = EPOLL_CTL_DEL;
 #endif
 
 	if (m_SocketFd != PC_INVALID_SOCKET)
 	{
 #if defined (_WIN32)
 #else
-		//epoll_ctl请求处理
-		struct epoll_event epv ;
-		memset(&epv, 0, sizeof(epv));
-		epv.events = m_events;
-		epv.data.fd = m_SocketFd;
-		epv.data.ptr = this;
-		if (0 != epoll_ctl(m_pPollerThread->m_epollFd, m_epctlOp, m_SocketFd, &epv))
-		{
-			PC_WARN_LOG("Create listen epoll_ctl fail.socket fd = %d, op = %d, events = %d", m_SocketFd, m_epctlOp, m_events);
-		}
+        EpollEventCtl(EPOLLIN | EPOLLOUT | EPOLLPRI | EPOLLERR | EPOLLHUP | EPOLLET, EPOLL_CTL_DEL);
 #endif
 		if (bGracefully)
 		{
@@ -185,7 +173,10 @@ bool CPCTcpSockHandle::PostSend()
 
 	return true;
 #else
-
+	if(false == EpollEventCtl(EPOLLOUT | EPOLLET, EPOLL_CTL_ADD))
+	{
+		return false;
+	}
 #endif
 }
 
@@ -222,11 +213,15 @@ bool CPCTcpSockHandle::PostRecv()
 			PC_ERROR_LOG("WSARecv fail！nErrNo = %d", nErrNo);
 			return false;
 		}
-	}
-	return true;
+    }
 #else
-
+    if(false == EpollEventCtl(EPOLLIN | EPOLLET, EPOLL_CTL_ADD))
+    {
+        return false;
+    }
 #endif
+
+    return true;
 }
 
 bool CPCTcpSockHandle::PostAccept(PC_SOCKET sListen)
@@ -322,21 +317,29 @@ void CPCTcpSockHandle::ProcessAccept()
 	}
 	
 #else
+    //接收连接
 	sockaddr_in addrClient;
 	memset(&addrClient, 0, sizeof(sockaddr_in));
 	int addrClientlen = sizeof(addrClient);
-
 	m_SocketFd = accept(m_ListenSocketFd, (sockaddr *)&addrClient, (socklen_t*)&addrClientlen);
 	if (m_SocketFd == PC_INVALID_SOCKET)
 	{
 		PC_ERROR_LOG("accept fail! errno=%d", PCGetLastError(true));
 		return ProcessClose();
 	}
+
+    //获取对方地址
 	if (NULL == inet_ntop(AF_INET, &addrClient.sin_addr, m_pszRemoteIP, sizeof(m_pszRemoteIP)))
 	{
 		PC_ERROR_LOG("inet_ntop fail! errno=%d", PCGetLastError(true));
 		return ProcessClose();
 	}
+
+    // 设置连接的套接字为非阻塞模式
+    if (PCSetNonBlocking(m_SocketFd) != 0)
+    {
+        return ProcessClose();
+    }
 #endif
 
 	PC_TRACE_LOG("accept(%s) client.", m_pszRemoteIP);
@@ -374,23 +377,57 @@ void CPCTcpSockHandle::ProcessSend(unsigned long dwSendedLen)
 
 	//判断是否都发完了
 	m_ActualSendedLen += dwSendedLen;
-	if (m_SendBuffer.Size() > m_ActualSendedLen)
+	if (m_ActualSendedLen < m_SendBuffer.Size() )
 	{
-		//没发完
+		//没发完 注册发送请求等待下次发送
 		if (!PostSend())
 		{
 			return ProcessClose();
 		}
+		return;
 	}
-	if (m_SendBuffer.Size() < m_ActualSendedLen)
-	{
-		//发多了
-		PC_WARN_LOG("need send len:m_SendBuffer.Size()(%lu) < actual sended len :m_ActualSendedLen(%lu) , strange.", m_SendBuffer.Size(), m_ActualSendedLen);
-	}
-	OnSendded();
 #else
+	while(1)
+	{
+		int nWaitSendLen = m_SendBuffer.Size() - m_ActualSendedLen;
+		if(nWaitSendLen <= 0)
+		{
+			//发完了
+			break;
+		}
 
+		int nSendedLen = send(m_SocketFd, m_SendBuffer.UnsafeBuffer() + m_ActualSendedLen, nWaitSendLen, 0);
+		if (nSendedLen >= 0)
+		{
+			m_ActualSendedLen += nSendedLen;
+			PC_TRACE_LOG("send succ. nWaitSendLen = %d, nSendedLen = %d ,m_ActualSendedLen = %lu", nWaitSendLen, nSendedLen, m_ActualSendedLen);
+		}
+		else
+		{
+			int errNo = PCGetLastError();
+			if (errNo == EAGAIN || errNo == EWOULDBLOCK)
+			{
+				//没发完 发送缓冲区已满，注册发送请求等待下次发送
+				if (!PostSend())
+				{
+					return ProcessClose();
+				}
+				return;
+			}
+			else
+			{
+				//发送出现错误
+				PC_ERROR_LOG("other err. send fail. errNo = %d", errNo);
+				return ProcessClose();
+			}
+		}
+	}
+	
 #endif
+	
+	//发完了
+	PC_TRACE_LOG("send over:m_ActualSendedLen(%lu), m_SendBuffer.Size(%lu).", m_ActualSendedLen,m_SendBuffer.Size() );
+	OnSendded();
 }
 
 void CPCTcpSockHandle::ProcessRecv(unsigned long dwRecvedLen)
@@ -404,19 +441,62 @@ void CPCTcpSockHandle::ProcessRecv(unsigned long dwRecvedLen)
 		PC_ERROR_LOG("opt code :%d err! correct opt code is : %d", m_Opt, eOpt::eRead);
 		return ProcessClose();
 	}
+	//对于windows，此时数据已经收完了，收到的长度即是dwRecvedLen
+#else
+	//对于linux，需要手动收数据，传入的dwRecvedLen没什么意义
+    m_RecvBuffer.Reset(0);
+	dwRecvedLen = 0;
+	while (1)
+	{
+        int nRecvdLen = recv(m_SocketFd, m_RecvBuffer.UnsafeBuffer() + dwRecvedLen, PER_SOCK_REQBUF_SIZE, 0);
+		if (nRecvdLen > 0)
+		{
+			dwRecvedLen += nRecvdLen;
+			PC_TRACE_LOG("recv end ,nRecvdLen = %d, dwRecvedLen = %d", nRecvdLen, dwRecvedLen);
+		}
+		else if (nRecvdLen == 0)
+		{
+            //连接被对方关闭
+			PC_TRACE_LOG("recv = 0 conn closed. dwRecvedLen = %d",  dwRecvedLen);
+            if(dwRecvedLen == 0)
+            {
+                //整个接收过程中没有收到任何数据，表示连接已被断开
+                return ProcessClose();
+            }
+            else
+            {
+                //接收到了部分数据，然后连接被关闭。数据是否接收完成由调用者判断
+                break;
+            }
+		}
+		else
+		{
+			int errNo = PCGetLastError();
+			if (errNo == EAGAIN || errNo == EWOULDBLOCK)
+			{
+				//缓冲区里的全部数据已经全部读完
+				PC_TRACE_LOG("errNo == EAGAIN || errNo == EWOULDBLOCK,buf is read end.dwRecvedLen = %d",  dwRecvedLen);
+				break;
+			}
+			else
+			{
+				//接收出现错误
+				PC_ERROR_LOG("other err. recv fail. errNo = %d", errNo);
+				return ProcessClose();
+			}
+		}
+	}
+#endif
+
 	//由于接收时使用了unsafebuffer，此时需要把长度也补充指定
 	m_RecvBuffer.Reset(dwRecvedLen);
 	OnRecved(dwRecvedLen);
-#else
-
-#endif
 }
 
 void CPCTcpSockHandle::ProcessClose()
 {
 	CPCGuard guard(m_Mutex);
 
-#if defined (_WIN32)
 	if (m_SocketType == eSockType::eAcceptType)
 	{
 		if (false == PostAccept(m_ListenSocketFd))
@@ -424,7 +504,7 @@ void CPCTcpSockHandle::ProcessClose()
 			PC_WARN_LOG("warning! closed eAcceptType PostAccept fail.");
 		}
 	}
-#endif
+
 	Cleanup();
 	OnClosed();
 }

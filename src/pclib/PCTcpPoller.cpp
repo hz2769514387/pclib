@@ -3,6 +3,7 @@
 #include "PCUtilSystem.h"
 #include "PCTcpPoller.h" 
 #include "PCTcpSockHandle.h" 
+#include "PCUtilMisc_Linux.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -37,13 +38,9 @@ bool CPCTcpPollerThread::Init()
 	}
 
     //将m_pipeFd[0]放入epoll队列
-    struct epoll_event read_event;
-	read_event.events = EPOLLHUP | EPOLLERR | EPOLLIN  ;
-	read_event.data.fd = m_pipeFd[0];
-	nRet = epoll_ctl(m_epollFd, EPOLL_CTL_ADD, m_pipeFd[0], &read_event);
-    if (nRet == -1)
+    nRet = LIN_EpollEventCtl(m_epollFd, m_pipeFd[0],  EPOLL_CTL_ADD, EPOLLHUP | EPOLLERR | EPOLLIN, NULL);
+    if (nRet != 0)
     {
-        PC_ERROR_LOG("epoll_ctl(m_pipeFd[0]) = %d, errno = %d fail! ", nRet, PCGetLastError());
         return false;
     }
 #endif
@@ -53,10 +50,10 @@ bool CPCTcpPollerThread::Init()
 void CPCTcpPollerThread::Svc()
 {
 #if defined (_WIN32)
-	BOOL			bRet = FALSE;
-	CPCTcpSockHandle *pHandle = NULL;
-	IOCP_IO_CTX    *lpIOContext = NULL;
-	DWORD           dwBytesXfered = 0;
+    BOOL                bRet = FALSE;
+    CPCTcpSockHandle*   pHandle = NULL;
+    IOCP_IO_CTX*        lpIOContext = NULL;
+    DWORD               dwBytesXfered = 0;
 
 	//处理完成端口上的消息
 	while (m_bRunning)
@@ -132,10 +129,11 @@ void CPCTcpPollerThread::Svc()
 #else
 	while (m_bRunning)
 	{
-        int fds = epoll_wait(m_epollFd, m_epollEvents, MAX_EPOLL_EVENTS, 1000);
+        PC_ERROR_LOG("CPCTcpPollerThread epoll_waiting ... ");
+        int fds = epoll_wait(m_epollFd, m_epollEvents, MAX_EPOLL_EVENTS, -1);
 		if (fds < 0)
 		{
-            PC_ERROR_LOG("epoll_wait = %d error! errno = %d. continue.", fds, PCGetLastError());
+            PC_ERROR_LOG("epoll_wait = %d error! errno = %d. break.", fds, PCGetLastError());
             break;
 		}
 		PC_ERROR_LOG("epoll_wait fds=%d, m_epollEvents[0].data.fd=%d", fds,m_epollEvents[0].data.fd );
@@ -144,7 +142,7 @@ void CPCTcpPollerThread::Svc()
 		for (int i = 0; i < fds; i++)
 		{
 			//处理eventfd事件，可能是epoll_ctl请求或退出请求
-			if(m_epollEvents[i].data.fd == m_pipeFd[0])
+            if(m_epollEvents[i].data.ptr == NULL)
             {
 				if ((m_epollEvents[i].events & EPOLLERR) || (m_epollEvents[i].events & EPOLLHUP))
 				{
@@ -155,11 +153,11 @@ void CPCTcpPollerThread::Svc()
 				{
 					PC_TRACE_LOG(" CPCTcpPollerThread process m_pipeFd[0] EPOLLIN.");
 
-					int64_t eventHandlePtr = 0;
-					ssize_t readLen = read(m_pipeFd[0], &eventHandlePtr, sizeof(CPCTcpSockHandle*));
-					if(readLen!=sizeof(CPCTcpSockHandle*))
+                    int64_t eventHandlePtr = 0;
+                    ssize_t readLen = read(m_pipeFd[0], &eventHandlePtr, sizeof(CPCTcpSockHandle*));
+                    if(readLen!=sizeof(CPCTcpSockHandle*))
 					{
-						PC_ERROR_LOG("CPCTcpPollerThread process read m_pipeFd[0] fail.readLen(%d) != sizeof(CPCTcpSockHandle*)(%d)",readLen, sizeof(CPCTcpSockHandle*));
+                        PC_ERROR_LOG("CPCTcpPollerThread process read m_pipeFd[0] fail.readLen(%d) != sizeof(CPCTcpSockHandle*)(%d)",readLen, sizeof(CPCTcpSockHandle*));
 						continue;
 					}
 					if(0 == eventHandlePtr)
@@ -188,22 +186,25 @@ void CPCTcpPollerThread::Svc()
             {
                 //处理实际的发送接收事件
 				CPCTcpSockHandle *	eventHandle = reinterpret_cast<CPCTcpSockHandle*>(m_epollEvents[i].data.ptr);
-                if(eventHandle == NULL)
-                {
-                    PC_ERROR_LOG("eventHandle = NULL, continue.");
-                    continue;
-                }
                 if (m_epollEvents[i].events & EPOLLIN)
                 {
                     if(eventHandle->m_SocketType == CPCTcpSockHandle::eSockType::eListenType)
                     {
-						//取一个空闲accept handle
+                        //到来了一个客户端
 						CPCTcpSockHandle * acceptHandle  = CPCTcpPoller::GetInstance()->GetAcceptHandle();
-						if(NULL == acceptHandle)
+                        if(NULL == acceptHandle)
 						{
-							continue;
-						}
-						acceptHandle->ProcessAccept();
+                            //没有空闲的处理连接了，直接关掉
+                            sockaddr_in addrClient;
+                            memset(&addrClient, 0, sizeof(sockaddr_in));
+                            int addrClientlen = sizeof(addrClient);
+                            int clientFd = accept(eventHandle->m_SocketFd, (sockaddr *)&addrClient, (socklen_t*)&addrClientlen);
+                            PCCloseSocket(clientFd);
+                        }
+                        else
+                        {
+                            acceptHandle->ProcessAccept();
+                        }
                     }
                     else
                     {
@@ -216,7 +217,15 @@ void CPCTcpPollerThread::Svc()
                 }
                 if (m_epollEvents[i].events & EPOLLERR)
                 {
-                    eventHandle->ProcessClose();
+                    if(eventHandle->m_SocketType == CPCTcpSockHandle::eSockType::eListenType)
+                    {
+                        //listen socket上产生了错误，忽略
+                        PC_WARN_LOG("CPCTcpPollerThread  listen socket get  EPOLLERR fail. ignored.");
+                    }
+                    else
+                    {
+                        eventHandle->ProcessClose();
+                    }
                 }
             }
 		}
@@ -300,14 +309,14 @@ bool CPCTcpPoller::StartTcpPoller()
 		{
 			return false;
 		}
-		if (false == m_phWorkerThreadList[i]->StartThread(5000))
+        if (false == m_phWorkerThreadList[i]->StartThread(PC_THREAD_TIMEOUT_MS))
 		{
 			return false;
 		}
 	}
 
 	//建立管理连接线程
-	if (false == this->StartThread(5000))
+    if (false == this->StartThread(PC_THREAD_TIMEOUT_MS))
 	{
 		return false;
 	}
@@ -334,8 +343,8 @@ void CPCTcpPoller::StopTcpPoller()
 		//发送停止epoll_wait的请求
 		if (m_phWorkerThreadList[i])
 		{
-			int64_t exitCode = 0;
-			m_phWorkerThreadList[i]->SendThreadMsg(&exitCode, sizeof(CPCTcpSockHandle*));
+            int64_t exitCode = 0;
+            m_phWorkerThreadList[i]->SendThreadMsg(&exitCode, sizeof(CPCTcpSockHandle*));
 		}
 #endif
 		if (m_phWorkerThreadList[i])
@@ -344,8 +353,8 @@ void CPCTcpPoller::StopTcpPoller()
 			m_phWorkerThreadList[i] = NULL;
 		}
 	}
+    m_nWorkerThreadCount = 0;
 
-	this->StopThread(5000);
 	PC_TRACE_LOG(" StopTcpPoller all ok.");
 }
 

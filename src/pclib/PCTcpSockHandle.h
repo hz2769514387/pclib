@@ -6,6 +6,7 @@
 #include "PCLock.h"
 #include "PCBuffer.h"
 #include "PCTcpPoller.h" 
+#include "PCUtilMisc_Linux.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -43,7 +44,7 @@ public:
 	//<创建和清理函数为同步处理，不会触发虚函数通知；投递函数则可能会触发通知>
 	//////////////////////////////////////////////////////////////////////////////
 	
-	//创建函数：【主动创建服务器监听socket（nPort在（0~65535）之间，创建后自动开启监听）或客户端socket（nPort不合法）】 
+	//创建函数：【主动创建服务器监听socket（nPort在[0~65535]之间，创建后自动开启监听）或客户端socket（nPort不合法）】 
 	bool Create(int nPort, bool bBlock = false);
 	//清理函数：bGracefully = true 时，优雅地关闭连接，否则为强制关闭连接。
 	void Cleanup(bool bGracefully = false);
@@ -66,8 +67,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////
 	// 未实现的回调函数，完成请求后的进一步处理，由用户继承此类后实现这些函数处理业务逻辑
 	//////////////////////////////////////////////////////////////////////////////
-	virtual void OnAccepted(){}
-	virtual void OnConnected(){}
+    virtual void OnAccepted(){}     //仅服务端处理套接字 需要实现此接口
+    virtual void OnConnected(){}    //仅客户端 需要实现此接口
 	virtual void OnSendded(){}
 	virtual void OnRecved(unsigned long dwRecvedLen){}
 	virtual void OnClosed(){}
@@ -99,10 +100,133 @@ public:
 	CPCTcpPollerThread* m_pPollerThread ;	//epoll_wait线程
 	int				m_events;				//要提交的事件，可以是以下组合：EPOLLIN EPOLLOUT EPOLLPRI EPOLLERR EPOLLHUP EPOLLET EPOLLONESHOT
 	int				m_epctlOp;				//要对事件进行的动作，可以是：EPOLL_CTL_ADD EPOLL_CTL_MOD EPOLL_CTL_DEL
+
+    //Epoll注册事件
+    bool EpollEventCtl(int events, int epctlOp)
+    {
+        m_events = events;
+        m_epctlOp = epctlOp;
+
+        /************************************************************
+        *epoll_ctl请求处理,此处跨线程调用了，不安全。最好使用发线程消息的方式
+        ************************************************************/
+        //先将事件删除
+        if(epctlOp == EPOLL_CTL_ADD)
+        {
+            LIN_EpollEventCtl(m_pPollerThread->m_epollFd, m_SocketFd,  EPOLL_CTL_DEL, EPOLLIN | EPOLLOUT |  EPOLLERR | EPOLLHUP | EPOLLET, this);
+        }
+
+        //在执行事件操作
+        return (0 == LIN_EpollEventCtl(m_pPollerThread->m_epollFd, m_SocketFd,  m_epctlOp, m_events, this));
+    }
 #endif
 
 private:
-	unsigned int	m_ActualSendedLen;		//实际发送的长度
+	size_t	m_ActualSendedLen;		//实际发送的长度
+};
+
+
+//限制模板类CPCListenManager的模板参数必须继承于CPCTcpSockHandle(现在只能运行期限制，完美的解决方案应该是编译期限制)
+template <typename T, bool nouse=std::is_base_of<CPCTcpSockHandle, T>::value>
+struct CPCListenManager{CPCListenManager(){PC_ASSERT(false,"This Should't compile.init listen manager type must extend CPCTcpSockHandle");}};
+
+/**
+*@brief		TCP监听连接管理类
+*			此为模板类，传入的模板参数类型T是eAcceptType的处理连接类，必须限制是CPCTcpSockHandle的子类，否则会运行崩溃
+*           要实现一个tcp server，直接使用此类作为监听对象，实现具体的处理连接类，然后启动即可。
+*/
+template <typename T>
+class CPCListenManager<T,true>  : public CPCTcpSockHandle
+								, public CPCThread
+{
+public:
+   CPCListenManager()
+       :CPCTcpSockHandle(eSockType::eListenType)
+       ,m_Started(false)
+       ,m_Stoped(true)
+   {
+
+   }
+   ~CPCListenManager()
+   {
+	   StopListen();
+   }
+
+   bool StartListen(int nPort, unsigned int nHandleCount)
+   {
+        if(m_Started)
+        {
+            PC_TRACE_LOG("listen(port=%d) already started!", nPort);
+            return true;
+        }
+
+		//参数校验
+		if (nPort < 0 || nPort > 65535 || nHandleCount == 0)
+		{
+			PC_ERROR_LOG("parms err!nPort=%d, nHandleCount=%u. ", nPort, nHandleCount);
+			return false;
+		}
+
+		//开始监听
+		if (false == this->Create(nPort))
+		{
+			return false;
+		}
+
+		//创建accept处理对象
+		m_AcceptHandleList.clear();
+		for (unsigned int i = 0; i < nHandleCount; i++)
+		{
+			T* tmpAcceptHandle = new (std::nothrow) T();
+			if (tmpAcceptHandle == NULL)
+			{
+				PC_WARN_LOG("listen(%d) warning! new accept handle fail! this handle[%u] is invalid.", nPort, i);
+				continue;
+			}
+			if (false == tmpAcceptHandle->PostAccept(this->m_SocketFd))
+			{
+				PC_WARN_LOG("listen(%d) warning! post accept fail! this handle[%u] is invalid.", nPort, i);
+				delete tmpAcceptHandle;
+				tmpAcceptHandle = NULL;
+				continue;
+			}
+			m_AcceptHandleList.push_back(tmpAcceptHandle);
+		}
+
+		//启动管理线程
+		if (false == this->StartThread(PC_THREAD_TIMEOUT_MS))
+		{
+			this->Cleanup();
+			return false;
+		}
+        m_Started = true;
+        return true;
+   }
+
+   void StopListen()
+   {
+        if(m_Stoped)
+        {
+            PC_TRACE_LOG("listen  already stoped!");
+            return;
+        }
+		this->StopThread(PC_THREAD_TIMEOUT_MS);
+		this->Cleanup();
+        m_Stoped = true;
+   }
+
+   void Svc()
+   {
+	   while (m_bRunning)
+	   {
+
+	   }
+   }
+
+private:
+   std::vector<T*>  m_AcceptHandleList;
+   bool             m_Started;
+   bool             m_Stoped;
 };
 
 //////////////////////////////////////////////////////////////////////////

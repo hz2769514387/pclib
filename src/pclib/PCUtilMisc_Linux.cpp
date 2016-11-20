@@ -1,6 +1,7 @@
 #include "PC_Lib.h"
-#include "PCUtilMisc_Linux.h"
 #include "PCLog.h"
+#include "PCUtilSystem.h"
+#include "PCUtilMisc_Linux.h"
 
 //////////////////////////////////////////////////////////////////////////
 PCLIB_NAMESPACE_BEG
@@ -40,6 +41,26 @@ int LIN_CodeConvert(const char *pszFormCharset, const char *pszToCharset, const 
     return (nOutBufLen - sLeftSize);
 }
 
+int LIN_EpollEventCtl(int epollFd, int socketFd,  int epctlOp, int events, void * dataPtr)
+{
+    if(epollFd == PC_INVALID_SOCKET || socketFd == PC_INVALID_SOCKET )
+    {
+        PC_ERROR_LOG("params error!epollFd=%d,socketFd=%d", epollFd,socketFd);
+        return PC_RESULT_PARAM;
+    }
+
+    //在执行事件操作
+    struct epoll_event epv ;
+    memset(&epv, 0, sizeof(epv));
+    epv.events = events;
+    epv.data.ptr = dataPtr;
+    if (0 != epoll_ctl(epollFd, epctlOp, socketFd, &epv))
+    {
+        PC_ERROR_LOG("epoll_ctl fail.errno = %d, socket fd = %d, op = %d, events = %d", PCGetLastError(), socketFd, epctlOp, events);
+        return PC_RESULT_SYSERROR;
+    }
+    return PC_RESULT_SUCCESS;
+}
 
 #endif
 

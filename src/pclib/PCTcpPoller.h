@@ -75,24 +75,6 @@ public:
 	//获取单例
 	static CPCTcpPoller* GetInstance(){static CPCTcpPoller m_me;return &m_me;}
 
-	//将CPCTcpSockHandle绑定或解绑到CPCTcpPoller
-	void BindTcpSockHandle(CPCTcpSockHandle* hTcpSockHandle)
-	{
-		CPCGuard guard(m_Mutex);
-		if (hTcpSockHandle)
-		{
-			m_TcpSockHandleSet.insert(hTcpSockHandle);
-		}
-	}
-	void UnBindTcpSockHandle(CPCTcpSockHandle* hTcpSockHandle)
-	{
-		CPCGuard guard(m_Mutex);
-		if (hTcpSockHandle)
-		{
-			m_TcpSockHandleSet.erase(hTcpSockHandle);
-		}
-	}
-
 	//启动和停止
 	bool StartTcpPoller();
 	void StopTcpPoller();
@@ -169,10 +151,7 @@ protected:
 
 	// 工作线程列表
 	CPCTcpPollerThread* m_phWorkerThreadList[MAX_POLLER_THREAD_COUNT];
-	unsigned int		m_nWorkerThreadCount;
-
-	// 所有连接列表
-	std::set<CPCTcpSockHandle*>		m_TcpSockHandleSet;
+    unsigned int		m_nWorkerThreadCount;
 
 #if defined (_WIN32)
 	// 完成端口的句柄
